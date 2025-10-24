@@ -1,6 +1,7 @@
 """
 Hatchr Backend - Startup-as-a-Service
 Generates full-stack MVP from a single prompt
+Using Perplexity Sonar + OpenAI GPT-4
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -14,13 +15,20 @@ from datetime import datetime
 import os
 import json
 
+# Import our generation service
+from generation_service import generate_full_stack_app
+
 # Initialize FastAPI app
 app = FastAPI(title="Hatchr API", version="1.0.0")
 
 # CORS middleware for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,114 +117,8 @@ class LivepeerService:
 
 # === CORE GENERATION LOGIC ===
 
-class DiscoveryService:
-    """Discover and analyze competitors"""
-
-    @staticmethod
-    async def find_competitors(prompt: str, job_id: str) -> List[Dict]:
-        """Search for similar startups"""
-
-        # Update job status
-        add_log(job_id, "Searching for similar competitors...", "info")
-        await asyncio.sleep(1)
-
-        # TODO: Implement actual competitor discovery
-        # - Use Google Custom Search API
-        # - Use BuiltWith API for tech stack detection
-        # - Scrape competitor websites with Playwright
-
-        competitors = [
-            {"name": "Calendly", "url": "https://calendly.com", "features": ["scheduling", "automation"]},
-            {"name": "Cal.com", "url": "https://cal.com", "features": ["open-source", "scheduling"]},
-            {"name": "Acuity", "url": "https://acuityscheduling.com", "features": ["payments", "booking"]}
-        ]
-
-        add_log(job_id, f"Found {len(competitors)} similar competitors", "success")
-        return competitors
-
-    @staticmethod
-    async def analyze_features(competitors: List[Dict], job_id: str) -> Dict:
-        """Extract and summarize competitor features"""
-
-        add_log(job_id, "Analyzing competitor features...", "info")
-        await asyncio.sleep(1)
-
-        # TODO: Implement actual feature extraction
-        # - Scrape each competitor site
-        # - Parse HTML structure
-        # - Extract feature lists, pricing, etc.
-        # - Use LLM to summarize key features
-
-        features = {
-            "core_features": ["calendar integration", "automated scheduling", "payment processing"],
-            "ui_patterns": ["dashboard", "booking widget", "settings page"],
-            "tech_recommendations": ["Next.js", "Supabase", "Tailwind CSS", "TypeScript"]
-        }
-
-        add_log(job_id, "Feature analysis complete", "success")
-        return features
-
-class MVPGeneratorService:
-    """Generate full-stack MVP code"""
-
-    @staticmethod
-    async def generate_mvp(prompt: str, features: Dict, job_id: str) -> Dict:
-        """Generate complete MVP codebase"""
-
-        update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "Generating Next.js components...", "info")
-        await asyncio.sleep(2)
-
-        # TODO: Implement actual LLM-based code generation
-        # - Feed competitor analysis to LLM
-        # - Generate Next.js pages and components
-        # - Generate API routes
-        # - Generate Supabase schema
-        # - Generate Tailwind config
-        # - Create Docker setup
-
-        add_log(job_id, "Setting up Supabase backend...", "info")
-        await asyncio.sleep(1)
-
-        add_log(job_id, "Creating authentication flow...", "info")
-        await asyncio.sleep(1)
-
-        project = {
-            "name": generate_project_name(prompt),
-            "tagline": generate_tagline(prompt),
-            "files_generated": 45,
-            "stack": ["Next.js 14", "Supabase", "Tailwind CSS", "TypeScript", "Docker"]
-        }
-
-        add_log(job_id, "MVP generation complete", "success")
-        return project
-
-class PackagingService:
-    """Package and prepare deployment"""
-
-    @staticmethod
-    async def package_project(project: Dict, job_id: str) -> str:
-        """Create downloadable project package"""
-
-        update_step_status(job_id, 2, "in_progress")
-        add_log(job_id, "Creating Dockerfile...", "info")
-        await asyncio.sleep(1)
-
-        # TODO: Implement actual packaging
-        # - Create project directory structure
-        # - Write all generated files
-        # - Create Dockerfile
-        # - Create README.md
-        # - Create .env.example
-        # - Zip everything
-
-        add_log(job_id, "Packaging project files...", "info")
-        await asyncio.sleep(1)
-
-        project_id = str(uuid.uuid4())
-
-        add_log(job_id, "Startup generated successfully!", "success")
-        return project_id
+# NOTE: All generation logic moved to generation_service.py
+# This uses Perplexity Sonar + OpenAI GPT-4 pipeline
 
 # === BACKGROUND JOB PROCESSOR ===
 
@@ -224,54 +126,64 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
     """Background task to handle full generation pipeline"""
 
     try:
-        # Step 1: Discovery
+        # Step 1: Research & Generate with Perplexity + OpenAI
         update_step_status(job_id, 0, "in_progress")
-        competitors = await DiscoveryService.find_competitors(prompt, job_id)
-        features = await DiscoveryService.analyze_features(competitors, job_id)
+
+        # Call the unified generation pipeline
+        result = await generate_full_stack_app(prompt, job_id, add_log)
+
         update_step_status(job_id, 0, "completed")
-        update_progress(job_id, 33)
+        update_progress(job_id, 40)
 
-        # Step 2: MVP Generation
-        project = await MVPGeneratorService.generate_mvp(prompt, features, job_id)
+        # Extract project data
+        project_id = result['project_id']
+        metadata = result['metadata']
+        zip_path = result['zip_path']
+
+        # Step 2: Generate marketing assets (Livepeer)
+        update_step_status(job_id, 1, "in_progress")
+        add_log(job_id, "Generating marketing materials...", "info")
+
+        video = await LivepeerService.generate_marketing_video(
+            f"{metadata['description']}. Built with {', '.join(metadata['tech_stack'])}",
+            metadata['project_name']
+        )
+        deck = await LivepeerService.generate_pitch_deck(metadata['description'])
+
         update_step_status(job_id, 1, "completed")
-        update_progress(job_id, 66)
+        update_progress(job_id, 70)
 
-        # Step 3: Packaging
-        project_id = await PackagingService.package_project(project, job_id)
+        # Step 3: Create founder identity (Concordium)
+        update_step_status(job_id, 2, "in_progress")
+        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
         update_step_status(job_id, 2, "completed")
         update_progress(job_id, 100)
-
-        # Step 4: Generate marketing assets (Livepeer)
-        add_log(job_id, "Generating marketing materials...", "info")
-        video = await LivepeerService.generate_marketing_video(
-            f"{project['tagline']}. Built with {', '.join(project['stack'])}",
-            project['name']
-        )
-        deck = await LivepeerService.generate_pitch_deck(project['tagline'])
-
-        # Step 5: Create founder identity (Concordium)
-        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
 
         # Store project in database
         projects_db[project_id] = {
             "project_id": project_id,
-            "project_name": project['name'],
-            "tagline": project['tagline'],
-            "stack": project['stack'],
+            "project_name": metadata['project_name'],
+            "tagline": metadata['description'],
+            "stack": metadata['tech_stack'],
             "verified": concordium_identity['concordium_verified'],
             "concordium_identity": concordium_identity,
+            "zip_path": zip_path,
+            "file_count": metadata['file_count'],
             "marketing_assets": {
                 "video": video,
                 "pitch_deck": deck
             },
             "launch_channels": generate_launch_channels(),
+            "competitor_citations": result.get('competitor_citations', []),
             "created_at": datetime.utcnow().isoformat()
         }
 
         # Mark job as completed
         jobs_db[job_id]['status'] = 'completed'
         jobs_db[job_id]['project_id'] = project_id
-        jobs_db[job_id]['project_name'] = project['name']
+        jobs_db[job_id]['project_name'] = metadata['project_name']
+
+        add_log(job_id, "🎉 Project generation complete!", "success")
 
     except Exception as e:
         jobs_db[job_id]['status'] = 'failed'
@@ -418,11 +330,17 @@ async def download_project(project_id: str):
     if project_id not in projects_db:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # TODO: Implement actual file download
-    # - Create zip from project files
-    # - Return as FileResponse
+    project = projects_db[project_id]
+    zip_path = project.get('zip_path')
 
-    raise HTTPException(status_code=501, detail="Download feature coming soon")
+    if not zip_path or not os.path.exists(zip_path):
+        raise HTTPException(status_code=404, detail="Project files not found")
+
+    return FileResponse(
+        path=zip_path,
+        media_type='application/zip',
+        filename=f"{project['project_name'].replace(' ', '_')}.zip"
+    )
 
 @app.post("/api/deploy/{project_id}")
 async def deploy_project(project_id: str):

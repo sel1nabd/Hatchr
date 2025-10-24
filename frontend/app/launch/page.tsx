@@ -1,48 +1,41 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
-type LaunchChannel = {
-  name: string;
-  description: string;
-  priority: "high" | "medium" | "low";
-};
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { api } from "@/lib/api";
+import type { ProjectResponse, LaunchChannel } from "@/lib/types";
 
 export default function Launch() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || localStorage.getItem("currentProjectId");
 
-  const launchChannels: LaunchChannel[] = [
-    {
-      name: "Product Hunt",
-      description: "Launch to tech-savvy early adopters",
-      priority: "high",
-    },
-    {
-      name: "IndieHackers",
-      description: "Share with indie maker community",
-      priority: "high",
-    },
-    {
-      name: "Reddit (r/SideProject)",
-      description: "Get feedback from builders",
-      priority: "medium",
-    },
-    {
-      name: "Twitter/X",
-      description: "Build in public, share progress",
-      priority: "medium",
-    },
-    {
-      name: "LinkedIn",
-      description: "Reach professional network",
-      priority: "low",
-    },
-    {
-      name: "Hacker News",
-      description: "Show HN for technical audience",
-      priority: "medium",
-    },
-  ];
+  const [project, setProject] = useState<ProjectResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch project data from backend
+  useEffect(() => {
+    if (!projectId) {
+      setError("No project ID found. Please complete generation first.");
+      setLoading(false);
+      return;
+    }
+
+    async function fetchProject() {
+      try {
+        const data = await api.getProject(projectId!);
+        setProject(data);
+      } catch (err) {
+        console.error("Failed to fetch project:", err);
+        setError("Failed to load project. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProject();
+  }, [projectId]);
 
   const handleRerun = () => {
     router.push("/");
@@ -53,38 +46,63 @@ export default function Launch() {
     console.log("Downloading launch plan...");
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 text-center">
+          <p className="text-gray-600">Loading project details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error || !project) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-50 rounded-lg border border-red-200 shadow-sm p-6">
+          <p className="text-red-700 mb-4">
+            {error || "Project not found"}
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Startup overview */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <h2 className="text-xl font-semibold mb-2">
-          Your Startup: AI Scheduling Tool
+          Your Startup: {project.project_name}
         </h2>
         <p className="text-gray-600 mb-4">
-          A smart scheduling platform for freelancers powered by AI
+          {project.tagline}
         </p>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
-            Next.js
-          </span>
-          <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
-            Supabase
-          </span>
-          <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
-            Tailwind CSS
-          </span>
-          <span className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
-            TypeScript
-          </span>
+          {project.stack.map((tech, idx) => (
+            <span key={idx} className="px-3 py-1 bg-gray-100 rounded-full text-xs font-medium text-gray-700">
+              {tech}
+            </span>
+          ))}
         </div>
 
-        <div className="inline-flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-200">
-          <span className="text-sm">✅</span>
-          <span className="text-xs font-medium text-green-800">
-            Concordium verified
-          </span>
-        </div>
+        {project.verified && (
+          <div className="inline-flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-200">
+            <span className="text-sm">✅</span>
+            <span className="text-xs font-medium text-green-800">
+              Concordium verified
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Marketing assets */}
@@ -146,20 +164,19 @@ export default function Launch() {
         </div>
 
         <div className="space-y-2">
-          {launchChannels.map((channel, idx) => (
+          {project.launch_channels.map((channel, idx) => (
             <div
               key={idx}
               className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    channel.priority === "high"
+                  className={`w-2 h-2 rounded-full ${channel.priority === "high"
                       ? "bg-red-500"
                       : channel.priority === "medium"
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
+                        ? "bg-yellow-500"
+                        : "bg-green-500"
+                    }`}
                 />
                 <div>
                   <h4 className="font-medium text-sm">{channel.name}</h4>
@@ -169,13 +186,12 @@ export default function Launch() {
                 </div>
               </div>
               <span
-                className={`text-xs font-medium px-2 py-1 rounded ${
-                  channel.priority === "high"
+                className={`text-xs font-medium px-2 py-1 rounded ${channel.priority === "high"
                     ? "bg-red-50 text-red-700"
                     : channel.priority === "medium"
-                    ? "bg-yellow-50 text-yellow-700"
-                    : "bg-green-50 text-green-700"
-                }`}
+                      ? "bg-yellow-50 text-yellow-700"
+                      : "bg-green-50 text-green-700"
+                  }`}
               >
                 {channel.priority}
               </span>

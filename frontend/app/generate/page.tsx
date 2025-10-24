@@ -1,107 +1,111 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-type BuildStep = {
-  id: number;
-  title: string;
-  status: "pending" | "in_progress" | "completed";
-};
-
-type LogEntry = {
-  timestamp: string;
-  message: string;
-  type: "info" | "success" | "error";
-};
+import { useRouter, useSearchParams } from "next/navigation";
+import ConcordiumVerify from "@/components/ConcordiumVerify";
+import { api } from "@/lib/api";
+import type { BuildStep, LogEntry } from "@/lib/types";
 
 export default function Generate() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const jobId = searchParams.get("jobId") || localStorage.getItem("currentJobId");
+
   const [steps, setSteps] = useState<BuildStep[]>([
-    { id: 1, title: "Finding competitors", status: "in_progress" },
+    { id: 1, title: "Finding competitors", status: "pending" },
     { id: 2, title: "Building MVP", status: "pending" },
     { id: 3, title: "Packaging startup", status: "pending" },
   ]);
-  const [logs, setLogs] = useState<LogEntry[]>([
-    {
-      timestamp: new Date().toLocaleTimeString(),
-      message: "Starting discovery process...",
-      type: "info",
-    },
-  ]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isComplete, setIsComplete] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
-  // Simulate build progress
+  // Poll job status from backend
   useEffect(() => {
-    // TODO: Replace with actual API polling
-    // const interval = setInterval(async () => {
-    //   const response = await fetch('/api/status/:jobId');
-    //   const data = await response.json();
-    //   setSteps(data.steps);
-    //   setLogs(data.logs);
-    //   setProgress(data.progress);
-    // }, 1000);
+    if (!jobId) {
+      setError("No job ID found. Please start from the home page.");
+      return;
+    }
 
-    // Mock progress simulation
-    const mockSteps = [
-      { step: 0, delay: 2000, log: "Found 3 similar competitors" },
-      { step: 1, delay: 4000, log: "Analyzing competitor features..." },
-      { step: 1, delay: 6000, log: "Generating Next.js components..." },
-      { step: 1, delay: 8000, log: "Setting up Supabase backend..." },
-      { step: 2, delay: 10000, log: "Creating Dockerfile..." },
-      { step: 2, delay: 11000, log: "Packaging project files..." },
-      { step: 2, delay: 12000, log: "Startup generated successfully!" },
-    ];
+    console.log(`[Generate] Starting polling for job: ${jobId}`);
 
-    mockSteps.forEach(({ step, delay, log }) => {
-      setTimeout(() => {
-        // Update step status
-        setSteps((prev) =>
-          prev.map((s, idx) => {
-            if (idx < step) return { ...s, status: "completed" };
-            if (idx === step) return { ...s, status: "in_progress" };
-            return s;
-          })
-        );
+    const interval = setInterval(async () => {
+      try {
+        const status = await api.getStatus(jobId);
 
-        // Add log entry
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date().toLocaleTimeString(),
-            message: log,
-            type: step === 2 && delay === 12000 ? "success" : "info",
-          },
-        ]);
+        // Update state from API response
+        setSteps(status.steps);
+        setLogs(status.logs);
+        setProgress(status.progress);
 
-        // Update progress
-        setProgress((delay / 12000) * 100);
-
-        // Mark complete
-        if (delay === 12000) {
-          setSteps((prev) =>
-            prev.map((s) => ({ ...s, status: "completed" }))
-          );
-          setIsComplete(true);
+        if (status.project_name) {
+          setProjectName(status.project_name);
         }
-      }, delay);
-    });
-  }, []);
+
+        // Check if completed or failed
+        if (status.status === "completed") {
+          clearInterval(interval);
+          setIsComplete(true);
+          if (status.project_id) {
+            setProjectId(status.project_id);
+            localStorage.setItem("currentProjectId", status.project_id);
+          }
+        } else if (status.status === "failed") {
+          clearInterval(interval);
+          setError("Generation failed. Please try again.");
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+        setError("Failed to check status. Retrying...");
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [jobId]);
 
   const handleDownload = () => {
-    // TODO: Implement download
-    console.log("Downloading startup package...");
+    if (!projectId) return;
+    const url = api.getDownloadUrl(projectId);
+    window.open(url, "_blank");
   };
 
-  const handleDeploy = () => {
-    // TODO: Implement Vercel deployment
-    console.log("Deploying to Vercel...");
+  const handleDeploy = async () => {
+    if (!projectId) return;
+    try {
+      const result = await api.deployProject(projectId);
+      alert(`Deployment started: ${result.message}`);
+    } catch (err) {
+      alert("Deployment feature coming soon!");
+    }
   };
 
   const handleViewLaunch = () => {
-    router.push("/launch");
+    if (projectId) {
+      router.push(`/launch?projectId=${projectId}`);
+    }
   };
+
+  // Show error if no job ID
+  if (!jobId) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-50 rounded-lg border border-red-200 shadow-sm p-6">
+          <p className="text-red-700">
+            No generation in progress. Please start from the home page.
+          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -127,30 +131,35 @@ export default function Generate() {
           {steps.map((step) => (
             <div key={step.id} className="flex items-center gap-3">
               <div
-                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                  step.status === "completed"
-                    ? "bg-green-100 text-green-700"
-                    : step.status === "in_progress"
+                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${step.status === "completed"
+                  ? "bg-green-100 text-green-700"
+                  : step.status === "in_progress"
                     ? "bg-blue-100 text-blue-700 animate-pulse"
                     : "bg-gray-100 text-gray-500"
-                }`}
+                  }`}
               >
                 {step.status === "completed" ? "✓" : step.id}
               </div>
               <span
-                className={`text-sm ${
-                  step.status === "completed"
-                    ? "text-gray-900 font-medium"
-                    : step.status === "in_progress"
+                className={`text-sm ${step.status === "completed"
+                  ? "text-gray-900 font-medium"
+                  : step.status === "in_progress"
                     ? "text-gray-900"
                     : "text-gray-500"
-                }`}
+                  }`}
               >
                 {step.title}
               </span>
             </div>
           ))}
         </div>
+
+        {/* Error display */}
+        {error && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Console logs */}
@@ -163,13 +172,12 @@ export default function Generate() {
           {logs.map((log, idx) => (
             <div
               key={idx}
-              className={`${
-                log.type === "success"
-                  ? "text-green-400"
-                  : log.type === "error"
+              className={`${log.type === "success"
+                ? "text-green-400"
+                : log.type === "error"
                   ? "text-red-400"
                   : "text-gray-300"
-              }`}
+                }`}
             >
               <span className="text-gray-600">[{log.timestamp}]</span>{" "}
               {log.message}
@@ -179,7 +187,7 @@ export default function Generate() {
       </div>
 
       {/* Completion card */}
-      {isComplete && (
+      {isComplete && projectId && (
         <div className="bg-green-50 rounded-lg border border-green-200 shadow-sm p-6">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -187,7 +195,7 @@ export default function Generate() {
             </div>
             <div className="flex-1">
               <h3 className="text-lg font-semibold text-green-900 mb-1">
-                Startup Generated: AI Scheduling Tool
+                Startup Generated: {projectName || "Your Startup"}
               </h3>
               <p className="text-sm text-green-800 mb-4">
                 Your full-stack application is ready to deploy
