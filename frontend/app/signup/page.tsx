@@ -25,9 +25,17 @@ export default function SignupPage() {
     fetch(
       "https://wallet-proxy.testnet.concordium.com/wallet-proxy/identityProviders"
     )
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch identity providers: ${res.status}`);
+        }
+        return res.json();
+      })
       .then(setIdentityProviders)
-      .catch(console.error);
+      .catch((err) => {
+        console.error("Error fetching identity providers:", err);
+        // Don't show alert here, user might not have wallet installed yet
+      });
   }, []);
 
   // --- CONNECT TO WALLET ---
@@ -52,11 +60,15 @@ export default function SignupPage() {
       setAccount(acc);
       console.log("✅ Connected wallet:", acc);
     } catch (e: any) {
-      if (e.message?.includes("Another prompt is already open")) {
+      console.error("Wallet connection error:", e);
+      const errorMessage = e?.message || String(e);
+
+      if (errorMessage.includes("Another prompt is already open")) {
         alert("Please close the existing Concordium popup before retrying.");
+      } else if (errorMessage.includes("not found") || errorMessage.includes("undefined")) {
+        alert("Concordium Browser Wallet not found. Please install it from the Chrome Web Store.");
       } else {
-        console.error(e);
-        alert("Connection failed. Please ensure your wallet is unlocked.");
+        alert("Connection failed. Please ensure your wallet is installed and unlocked.");
       }
     } finally {
       setConnecting(false);

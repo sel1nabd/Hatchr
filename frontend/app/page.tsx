@@ -2,28 +2,32 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [verified, setVerified] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
     setIsGenerating(true);
+    setError(null);
 
-    // TODO: Call backend API
-    // const response = await fetch('/api/generate', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ prompt, verified })
-    // });
+    try {
+      const response = await api.generateStartup({ prompt, verified });
 
-    // Simulate API call for now
-    setTimeout(() => {
-      router.push("/generate");
-    }, 500);
+      // Store job_id in localStorage and navigate
+      localStorage.setItem("currentJobId", response.job_id);
+      router.push(`/generate?jobId=${response.job_id}`);
+    } catch (err) {
+      console.error("Failed to start generation:", err);
+      setError("Failed to start generation. Please try again.");
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -83,6 +87,13 @@ export default function Home() {
             <span className="text-gray-500">(uses Concordium)</span>
           </label>
         </div>
+
+        {/* Error message */}
+        {error && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
 
         {/* Generate button */}
         <button

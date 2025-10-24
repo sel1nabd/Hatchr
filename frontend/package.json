@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@concordium/browser-wallet-api-helpers": "^3.0.1",
-    "@concordium/web-sdk": "^11.0.0",
+    "@concordium/web-sdk": "^7.4.0",
     "@tailwindcss/postcss": "^4.1.16",
     "@types/node": "^24.9.1",
     "@types/react": "^19.2.2",
