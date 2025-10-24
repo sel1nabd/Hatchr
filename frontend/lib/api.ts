@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 /**
  * Logger utility for monitoring API calls
@@ -59,6 +59,8 @@ async function apiFetch<T>(
         "Content-Type": "application/json",
         ...options.headers,
       },
+      mode: 'cors',
+      credentials: 'include',
     });
 
     if (!response.ok) {
