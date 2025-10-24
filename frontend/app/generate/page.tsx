@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ConcordiumVerify from "@/components/ConcordiumVerify";
 import { useRouter } from "next/navigation";
 
 type BuildStep = {
@@ -127,24 +128,22 @@ export default function Generate() {
           {steps.map((step) => (
             <div key={step.id} className="flex items-center gap-3">
               <div
-                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                  step.status === "completed"
-                    ? "bg-green-100 text-green-700"
-                    : step.status === "in_progress"
+                className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${step.status === "completed"
+                  ? "bg-green-100 text-green-700"
+                  : step.status === "in_progress"
                     ? "bg-blue-100 text-blue-700 animate-pulse"
                     : "bg-gray-100 text-gray-500"
-                }`}
+                  }`}
               >
                 {step.status === "completed" ? "✓" : step.id}
               </div>
               <span
-                className={`text-sm ${
-                  step.status === "completed"
-                    ? "text-gray-900 font-medium"
-                    : step.status === "in_progress"
+                className={`text-sm ${step.status === "completed"
+                  ? "text-gray-900 font-medium"
+                  : step.status === "in_progress"
                     ? "text-gray-900"
                     : "text-gray-500"
-                }`}
+                  }`}
               >
                 {step.title}
               </span>
@@ -152,7 +151,6 @@ export default function Generate() {
           ))}
         </div>
       </div>
-
       {/* Console logs */}
       <div className="bg-gray-900 rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -163,13 +161,12 @@ export default function Generate() {
           {logs.map((log, idx) => (
             <div
               key={idx}
-              className={`${
-                log.type === "success"
-                  ? "text-green-400"
-                  : log.type === "error"
+              className={`${log.type === "success"
+                ? "text-green-400"
+                : log.type === "error"
                   ? "text-red-400"
                   : "text-gray-300"
-              }`}
+                }`}
             >
               <span className="text-gray-600">[{log.timestamp}]</span>{" "}
               {log.message}

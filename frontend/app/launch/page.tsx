@@ -153,13 +153,12 @@ export default function Launch() {
             >
               <div className="flex items-center gap-3">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    channel.priority === "high"
+                  className={`w-2 h-2 rounded-full ${channel.priority === "high"
                       ? "bg-red-500"
                       : channel.priority === "medium"
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
+                        ? "bg-yellow-500"
+                        : "bg-green-500"
+                    }`}
                 />
                 <div>
                   <h4 className="font-medium text-sm">{channel.name}</h4>
@@ -169,13 +168,12 @@ export default function Launch() {
                 </div>
               </div>
               <span
-                className={`text-xs font-medium px-2 py-1 rounded ${
-                  channel.priority === "high"
+                className={`text-xs font-medium px-2 py-1 rounded ${channel.priority === "high"
                     ? "bg-red-50 text-red-700"
                     : channel.priority === "medium"
-                    ? "bg-yellow-50 text-yellow-700"
-                    : "bg-green-50 text-green-700"
-                }`}
+                      ? "bg-yellow-50 text-yellow-700"
+                      : "bg-green-50 text-green-700"
+                  }`}
               >
                 {channel.priority}
               </span>

@@ -47,31 +47,51 @@ export default function Home() {
             e.g., "Airbnb for pets" or "AI scheduling tool for freelancers"
           </p>
 
-          {/* Verification toggle */}
-          <div className="mt-6 flex items-center">
-            <input
-              type="checkbox"
-              id="verified"
-              checked={verified}
-              onChange={(e) => setVerified(e.target.checked)}
-              className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-400"
-              disabled={isGenerating}
-            />
-            <label htmlFor="verified" className="ml-2 text-sm text-gray-700">
-              Mark as verified founder{" "}
-              <span className="text-gray-500">(uses Concordium)</span>
-            </label>
-          </div>
+          <p>
+            Guiding questions you should answer in the prompt:
+          </p>
+          <ul>
+            <li>
+              What problem does your startup solve, and why does it matter right now?
+            </li>
+            <li>  How does your solution work in the simplest terms what makes it different or better?
+            </li>
+            <li>
+              Who are your target users or customers, and what transformation do they experience?
+            </li>
+            <li>        What’s the vision—where do you see this startup in the next year or five years?
+            </li>
+            <li>
+              If viewers remember one thing about your startup after watching, what should it be?
+            </li>
+          </ul>
 
-          {/* Generate button */}
-          <button
-            onClick={handleGenerate}
-            disabled={!prompt.trim() || isGenerating}
-            className="w-full mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isGenerating ? "Generating..." : "Generate Startup"}
-          </button>
         </div>
+
+        {/* Verification toggle */}
+        <div className="mt-6 flex items-center">
+          <input
+            type="checkbox"
+            id="verified"
+            checked={verified}
+            onChange={(e) => setVerified(e.target.checked)}
+            className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-400"
+            disabled={isGenerating}
+          />
+          <label htmlFor="verified" className="ml-2 text-sm text-gray-700">
+            Mark as verified founder{" "}
+            <span className="text-gray-500">(uses Concordium)</span>
+          </label>
+        </div>
+
+        {/* Generate button */}
+        <button
+          onClick={handleGenerate}
+          disabled={!prompt.trim() || isGenerating}
+          className="w-full mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {isGenerating ? "Generating..." : "Generate Startup"}
+        </button>
 
         {/* Info cards */}
         <div className="grid grid-cols-3 gap-4">
