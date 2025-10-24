@@ -118,7 +118,7 @@ class LivepeerService:
 # === CORE GENERATION LOGIC ===
 
 # NOTE: All generation logic moved to generation_service.py
-# This uses Perplexity Sonar + OpenAI GPT-4 pipeline
+# This uses GPT-5 + Lovable integration
 
 # === BACKGROUND JOB PROCESSOR ===
 
@@ -126,32 +126,33 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
     """Background task to handle full generation pipeline"""
 
     try:
-        # Step 1: Research & Generate with Perplexity + OpenAI
+        # Step 1: Analyze with GPT-5 and create Lovable URL
         update_step_status(job_id, 0, "in_progress")
 
-        # Call the unified generation pipeline
+        # Call the generation pipeline
         result = await generate_full_stack_app(prompt, job_id, add_log)
 
         update_step_status(job_id, 0, "completed")
-        update_progress(job_id, 40)
+        update_progress(job_id, 50)
 
         # Extract project data
         project_id = result['project_id']
-        metadata = result['metadata']
-        zip_path = result['zip_path']
+        project_name = result['project_name']
+        lovable_url = result['lovable_url']
+        analysis = result['analysis']
 
         # Step 2: Generate marketing assets (Livepeer)
         update_step_status(job_id, 1, "in_progress")
         add_log(job_id, "Generating marketing materials...", "info")
 
         video = await LivepeerService.generate_marketing_video(
-            f"{metadata['description']}. Built with {', '.join(metadata['tech_stack'])}",
-            metadata['project_name']
+            f"{project_name}. {analysis['information'][:200]}",
+            project_name
         )
-        deck = await LivepeerService.generate_pitch_deck(metadata['description'])
+        deck = await LivepeerService.generate_pitch_deck(analysis['information'][:500])
 
         update_step_status(job_id, 1, "completed")
-        update_progress(job_id, 70)
+        update_progress(job_id, 75)
 
         # Step 3: Create founder identity (Concordium)
         update_step_status(job_id, 2, "in_progress")
@@ -162,28 +163,27 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         # Store project in database
         projects_db[project_id] = {
             "project_id": project_id,
-            "project_name": metadata['project_name'],
-            "tagline": metadata['description'],
-            "stack": metadata['tech_stack'],
+            "project_name": project_name,
+            "tagline": analysis['information'][:200],
+            "stack": ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
             "verified": concordium_identity['concordium_verified'],
             "concordium_identity": concordium_identity,
-            "zip_path": zip_path,
-            "file_count": metadata['file_count'],
+            "lovable_url": lovable_url,
+            "analysis": analysis,
             "marketing_assets": {
                 "video": video,
                 "pitch_deck": deck
             },
             "launch_channels": generate_launch_channels(),
-            "competitor_citations": result.get('competitor_citations', []),
             "created_at": datetime.utcnow().isoformat()
         }
 
         # Mark job as completed
         jobs_db[job_id]['status'] = 'completed'
         jobs_db[job_id]['project_id'] = project_id
-        jobs_db[job_id]['project_name'] = metadata['project_name']
+        jobs_db[job_id]['project_name'] = project_name
 
-        add_log(job_id, "🎉 Project generation complete!", "success")
+        add_log(job_id, "🎉 Lovable URL ready! Click to build your app.", "success")
 
     except Exception as e:
         jobs_db[job_id]['status'] = 'failed'
@@ -261,14 +261,14 @@ async def generate_startup(request: GenerateRequest, background_tasks: Backgroun
         "status": "processing",
         "progress": 0,
         "steps": [
-            {"id": 1, "title": "Finding competitors", "status": "pending"},
-            {"id": 2, "title": "Building MVP", "status": "pending"},
-            {"id": 3, "title": "Packaging startup", "status": "pending"},
+            {"id": 1, "title": "Analyzing your idea", "status": "pending"},
+            {"id": 2, "title": "Generating marketing assets", "status": "pending"},
+            {"id": 3, "title": "Creating Lovable link", "status": "pending"},
         ],
         "logs": [
             {
                 "timestamp": datetime.now().strftime("%H:%M:%S"),
-                "message": "Starting discovery process...",
+                "message": "Starting analysis...",
                 "type": "info"
             }
         ],
@@ -321,26 +321,26 @@ async def get_project(project_id: str) -> ProjectResponse:
 
     return ProjectResponse(**project)
 
-@app.get("/api/download/{project_id}")
-async def download_project(project_id: str):
+@app.get("/api/lovable-url/{project_id}")
+async def get_lovable_url(project_id: str):
     """
-    Download project as zip file
+    Get the Lovable build URL for a project
     """
 
     if project_id not in projects_db:
         raise HTTPException(status_code=404, detail="Project not found")
 
     project = projects_db[project_id]
-    zip_path = project.get('zip_path')
+    lovable_url = project.get('lovable_url')
 
-    if not zip_path or not os.path.exists(zip_path):
-        raise HTTPException(status_code=404, detail="Project files not found")
+    if not lovable_url:
+        raise HTTPException(status_code=404, detail="Lovable URL not generated yet")
 
-    return FileResponse(
-        path=zip_path,
-        media_type='application/zip',
-        filename=f"{project['project_name'].replace(' ', '_')}.zip"
-    )
+    return {
+        "project_id": project_id,
+        "lovable_url": lovable_url,
+        "project_name": project['project_name']
+    }
 
 @app.post("/api/deploy/{project_id}")
 async def deploy_project(project_id: str):

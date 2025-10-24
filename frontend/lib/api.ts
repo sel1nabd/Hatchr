@@ -109,12 +109,11 @@ export const api = {
   },
 
   /**
-   * Download project ZIP
+   * Get Lovable build URL
    */
-  getDownloadUrl(projectId: string): string {
-    const url = `${API_BASE_URL}/api/download/${projectId}`;
-    APILogger.info(`Download URL generated: ${url}`);
-    return url;
+  async getLovableUrl(projectId: string): Promise<{ lovable_url: string; project_name: string }> {
+    APILogger.info(`Fetching Lovable URL for project: ${projectId}`);
+    return apiFetch(`/api/lovable-url/${projectId}`);
   },
 
   /**

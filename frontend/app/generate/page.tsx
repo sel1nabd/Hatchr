@@ -66,19 +66,14 @@ export default function Generate() {
     return () => clearInterval(interval);
   }, [jobId]);
 
-  const handleDownload = () => {
-    if (!projectId) return;
-    const url = api.getDownloadUrl(projectId);
-    window.open(url, "_blank");
-  };
-
-  const handleDeploy = async () => {
+  const handleBuildOnLovable = async () => {
     if (!projectId) return;
     try {
-      const result = await api.deployProject(projectId);
-      alert(`Deployment started: ${result.message}`);
+      const result = await api.getLovableUrl(projectId);
+      window.open(result.lovable_url, "_blank");
     } catch (err) {
-      alert("Deployment feature coming soon!");
+      console.error("Failed to get Lovable URL:", err);
+      alert("Failed to get Lovable URL. Please try again.");
     }
   };
 
@@ -212,22 +207,16 @@ export default function Generate() {
               {/* Action buttons */}
               <div className="flex gap-3">
                 <button
-                  onClick={handleDownload}
-                  className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  onClick={handleBuildOnLovable}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                 >
-                  Download Folder
-                </button>
-                <button
-                  onClick={handleDeploy}
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
-                >
-                  Deploy to Vercel
+                  🚀 Build on Lovable →
                 </button>
                 <button
                   onClick={handleViewLaunch}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
                 >
-                  View Launch Guide →
+                  View Details →
                 </button>
               </div>
             </div>

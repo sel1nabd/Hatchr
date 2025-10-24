@@ -1,228 +1,140 @@
 """
-Generation Service - Perplexity Sonar + OpenAI Pipeline
-Clean, efficient competitor research and code generation
+Generation Service - GPT-5 Analysis + Lovable Integration
+Simple, focused workflow: Analyze idea → Create Lovable URL
 """
 
 import os
 import json
-import zipfile
-from typing import Dict, List
-from pathlib import Path
-import httpx
+from typing import Dict
+from urllib.parse import quote
 from openai import AsyncOpenAI
+from dotenv import load_dotenv
 
-# Initialize clients lazily
+# Load environment variables first
+load_dotenv()
+
+# Initialize OpenAI client
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY", "")
 
 def get_openai_client():
     """Lazy initialization of OpenAI client"""
     return AsyncOpenAI(api_key=OPENAI_API_KEY if OPENAI_API_KEY else None)
 
 
-class PerplexityService:
-    """Perplexity Sonar API for competitor research"""
+class IdeaAnalyzer:
+    """GPT-5 for analyzing startup ideas and market research"""
 
     @staticmethod
-    async def research_competitors(prompt: str) -> Dict:
-        """Use Perplexity Sonar to research competitors and features"""
+    async def analyze_idea(prompt: str) -> Dict:
+        """
+        Use GPT-5 to analyze the startup idea and generate structured information
 
-        # Craft search query
-        search_query = f"""Find the top 3-5 most popular web applications or services that are similar to: {prompt}
-
-For each competitor, provide:
-1. Name and URL
-2. Key features (list 5-7 main features)
-3. Technology stack if known
-4. Target audience
-5. Unique selling points
-
-Format the response as structured data."""
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://api.perplexity.ai/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "sonar",
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a product research analyst. Provide detailed, structured information about web applications and their features."
-                        },
-                        {
-                            "role": "user",
-                            "content": search_query
-                        }
-                    ]
-                },
-                timeout=60.0
-            )
-
-            result = response.json()
-
-            return {
-                "competitors_analysis": result["choices"][0]["message"]["content"],
-                "citations": result.get("citations", []),
-                "search_results": result.get("search_results", [])
+        Returns:
+            {
+                "information": "Description of space, competitors, insights",
+                "structure": "Typical website structure for this type"
             }
+        """
 
+        system_prompt = """You are a product analyst and UX expert specializing in web applications.
 
-class CodeGeneratorService:
-    """OpenAI GPT-4 for code generation"""
+Analyze startup ideas and output structured information to help build better websites.
 
-    @staticmethod
-    async def generate_nextjs_app(prompt: str, competitor_analysis: str) -> Dict:
-        """Generate complete Next.js application code"""
-
-        system_prompt = """You are an expert full-stack developer specializing in Next.js 14, TypeScript, Tailwind CSS, and Supabase.
-
-Generate COMPLETE, PRODUCTION-READY code for a full-stack web application.
-
-IMPORTANT INSTRUCTIONS:
-1. Generate ALL files needed for a working Next.js 14 app
-2. Use App Router (not Pages Router)
-3. Include TypeScript throughout
-4. Use Tailwind CSS for styling
-5. Include Supabase setup for backend
-6. Make it modern, beautiful, and functional
-7. Return files in a structured JSON format
-
-Required files to generate:
-- package.json (with all dependencies)
-- next.config.js
-- tailwind.config.ts
-- tsconfig.json
-- app/layout.tsx
-- app/page.tsx (landing page with hero, features, CTA)
-- app/dashboard/page.tsx (main app functionality)
-- app/auth/login/page.tsx
-- app/auth/signup/page.tsx
-- app/api/*/route.ts (at least 2-3 API routes)
-- components/* (at least 5 reusable components)
-- lib/supabase.ts (Supabase client setup)
-- .env.example
-- README.md (with setup instructions)
-
-Return your response as a JSON object with this structure:
+Output JSON format:
 {
-  "project_name": "string",
-  "description": "string",
-  "files": {
-    "package.json": "file content here",
-    "app/page.tsx": "file content here",
-    ...
-  }
+  "information": "Detailed description including: the core idea, what market space this is in, the main competitors in this space (name 3-5 real companies), what makes this idea unique, and the target audience",
+  "structure": "Typical website structure for this type of application, including: main pages needed (landing, dashboard, etc.), key features to implement, essential user flows, and important UI components"
 }
 
-Make the code:
-- Clean and well-commented
-- Following best practices
-- Fully functional (no placeholders)
-- Beautiful UI with Tailwind
-- Responsive design"""
+Be thorough, specific, and actionable. Reference real competitors and proven patterns."""
 
-        user_prompt = f"""Create a complete Next.js 14 application for: {prompt}
+        user_prompt = f"""Analyze this startup idea and provide strategic insights:
 
-Based on this competitor analysis:
-{competitor_analysis}
+"{prompt}"
 
-Generate a modern, production-ready application that combines the best features from the competitors while adding unique value.
+Provide:
+1. **Information**: What space is this in? Who are the main competitors (real companies)? What patterns do successful apps in this space follow? What makes this idea valuable?
 
-The app should be visually stunning, user-friendly, and include:
-- Beautiful landing page
-- User authentication
-- Main dashboard/functionality
-- Settings page
-- Responsive design
-- Dark mode support
-- Loading states
-- Error handling
+2. **Structure**: What should the website include? What pages are essential? What features must it have? What's the typical user journey?
 
-Remember to return the response as a JSON object with all the files."""
+Return as JSON with 'information' and 'structure' keys."""
 
         client = get_openai_client()
+
         response = await client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-5",  # Using GPT-5
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format={"type": "json_object"},
-            temperature=0.7,
-            max_tokens=16000
+            response_format={"type": "json_object"}
+            # Note: GPT-5 doesn't support temperature parameter (default is 1)
+            # Can use reasoning_effort: "low" | "medium" | "high" instead
         )
 
-        generated_content = response.choices[0].message.content
+        result = json.loads(response.choices[0].message.content)
 
-        try:
-            return json.loads(generated_content)
-        except json.JSONDecodeError:
-            # If JSON parsing fails, try to extract JSON from the response
-            import re
-            json_match = re.search(r'\{.*\}', generated_content, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            raise ValueError("Failed to parse generated code as JSON")
+        return result
 
 
-class ProjectPackager:
-    """Package generated code into downloadable project"""
+class LovableService:
+    """Create Lovable Build URLs from analyzed ideas"""
 
     @staticmethod
-    def create_project_files(project_data: Dict, project_id: str) -> str:
-        """Write all generated files to disk and create ZIP"""
+    def create_lovable_url(user_prompt: str, analysis: Dict) -> str:
+        """
+        Create a Lovable Build URL from the GPT-5 analysis
 
-        # Create project directory
-        project_dir = Path(f"generated_projects/{project_id}")
-        project_dir.mkdir(parents=True, exist_ok=True)
+        Args:
+            user_prompt: Original user input
+            analysis: GPT-5 analysis with {information, structure}
 
-        files = project_data.get("files", {})
+        Returns:
+            Lovable URL: https://lovable.dev/?autosubmit=true#prompt=...
+        """
 
-        # Write each file
-        for file_path, content in files.items():
-            full_path = project_dir / file_path
-            full_path.parent.mkdir(parents=True, exist_ok=True)
+        # Craft enhanced prompt from GPT-5 analysis
+        enhanced_prompt = f"""Build a modern web application: {user_prompt}
 
-            # Write the file
-            with open(full_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+## Market Context
+{analysis['information']}
 
-        # Create ZIP archive
-        zip_path = f"generated_projects/{project_id}.zip"
+## Website Structure
+{analysis['structure']}
 
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for file_path in project_dir.rglob('*'):
-                if file_path.is_file():
-                    arcname = file_path.relative_to(project_dir)
-                    zipf.write(file_path, arcname)
+## Requirements
+Create a beautiful, professional web application with:
+- Modern, clean UI using Tailwind CSS
+- Fully responsive design (mobile, tablet, desktop)
+- User authentication (login/signup pages)
+- Main dashboard with core functionality
+- Landing page with hero section and features
+- Settings/profile page
+- Dark mode support
+- Loading states and error handling
+- Smooth animations and transitions
+- Professional color scheme and typography
 
-        return zip_path
+Make it production-ready, visually stunning, and better than the competitors mentioned above.
+Use Next.js, TypeScript, and Supabase for the backend."""
 
-    @staticmethod
-    def get_project_metadata(project_data: Dict) -> Dict:
-        """Extract metadata from generated project"""
+        # URL encode the prompt (max 50k characters)
+        encoded_prompt = quote(enhanced_prompt, safe='')
 
-        files = project_data.get("files", {})
+        # Construct Lovable URL
+        lovable_url = f"https://lovable.dev/?autosubmit=true#prompt={encoded_prompt}"
 
-        return {
-            "project_name": project_data.get("project_name", "Generated App"),
-            "description": project_data.get("description", ""),
-            "file_count": len(files),
-            "has_auth": any("auth" in path for path in files.keys()),
-            "has_api": any("api" in path for path in files.keys()),
-            "has_dashboard": any("dashboard" in path for path in files.keys()),
-            "tech_stack": ["Next.js 14", "TypeScript", "Tailwind CSS", "Supabase"]
-        }
+        # Log URL length (warn if too long)
+        if len(lovable_url) > 8000:
+            print(f"WARNING: Lovable URL is {len(lovable_url)} chars - might be too long for some browsers")
+
+        return lovable_url
 
 
 # Main orchestration function
 async def generate_full_stack_app(prompt: str, job_id: str, log_callback) -> Dict:
     """
-    Main pipeline: Perplexity research → OpenAI generation → Package
+    Main pipeline: GPT-5 analysis → Lovable URL generation
 
     Args:
         prompt: User's startup idea
@@ -230,40 +142,35 @@ async def generate_full_stack_app(prompt: str, job_id: str, log_callback) -> Dic
         log_callback: Function to call for progress updates
 
     Returns:
-        Dict with project_id, files, metadata
+        Dict with lovable_url and analysis
     """
 
-    # Step 1: Research competitors with Perplexity
-    log_callback(job_id, "Researching competitors with Perplexity Sonar...", "info")
-    competitor_data = await PerplexityService.research_competitors(prompt)
+    # Step 1: Analyze idea with GPT-5
+    log_callback(job_id, "Analyzing your startup idea with GPT-5...", "info")
 
-    log_callback(job_id, f"Found competitors with {len(competitor_data.get('citations', []))} sources", "success")
+    analysis = await IdeaAnalyzer.analyze_idea(prompt)
 
-    # Step 2: Generate code with OpenAI
-    log_callback(job_id, "Generating Next.js application with GPT-4...", "info")
-    project_data = await CodeGeneratorService.generate_nextjs_app(
-        prompt,
-        competitor_data["competitors_analysis"]
-    )
+    log_callback(job_id, "Analysis complete - identified market space and competitors", "success")
 
-    log_callback(job_id, f"Generated {len(project_data.get('files', {}))} files", "success")
+    # Step 2: Create enhanced Lovable prompt
+    log_callback(job_id, "Crafting optimized Lovable prompt...", "info")
 
-    # Step 3: Package everything
-    log_callback(job_id, "Creating project files and ZIP archive...", "info")
+    lovable_url = LovableService.create_lovable_url(prompt, analysis)
 
-    # Generate unique project ID (passed from caller)
+    log_callback(job_id, "Lovable URL generated successfully!", "success")
+
+    # Generate metadata
     import uuid
     project_id = str(uuid.uuid4())
 
-    zip_path = ProjectPackager.create_project_files(project_data, project_id)
-    metadata = ProjectPackager.get_project_metadata(project_data)
-
-    log_callback(job_id, "Project packaged successfully!", "success")
+    # Extract project name from prompt (simple heuristic)
+    words = prompt.split()[:3]
+    project_name = " ".join(w.capitalize() for w in words)
 
     return {
         "project_id": project_id,
-        "zip_path": zip_path,
-        "metadata": metadata,
-        "competitor_citations": competitor_data.get("citations", []),
-        "files_generated": len(project_data.get("files", {}))
+        "project_name": project_name,
+        "lovable_url": lovable_url,
+        "analysis": analysis,
+        "prompt_length": len(lovable_url)
     }

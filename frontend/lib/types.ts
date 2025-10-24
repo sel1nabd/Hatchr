@@ -61,6 +61,11 @@ export interface ProjectResponse {
   tagline: string;
   stack: string[];
   verified: boolean;
+  lovable_url: string;
+  analysis: {
+    information: string;
+    structure: string;
+  };
   marketing_assets: MarketingAssets;
   launch_channels: LaunchChannel[];
 }

@@ -105,6 +105,56 @@ export default function Launch() {
         )}
       </div>
 
+      {/* Lovable Build Section */}
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 shadow-sm p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+            <span className="text-2xl">🚀</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Build Your App on Lovable
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Click below to open Lovable and automatically build your app.
+              The AI will create a complete, production-ready website based on your idea.
+            </p>
+            <a
+              href={project.lovable_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              🚀 Build on Lovable →
+            </a>
+            <p className="text-xs text-gray-500 mt-3">
+              Opens in new tab • Auto-builds your app • Free to use
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* GPT-5 Analysis */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <h3 className="text-lg font-semibold mb-4">AI Analysis</h3>
+
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Market Information</h4>
+            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+              {project.analysis.information}
+            </p>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Recommended Structure</h4>
+            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">
+              {project.analysis.structure}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Marketing assets */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
         <h3 className="text-lg font-semibold mb-4">Marketing Assets</h3>
