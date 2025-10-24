@@ -1,0 +1,266 @@
+import { useNavigate } from "react-router-dom";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Sparkles, Code, Database, ArrowRight, Users, Megaphone, RefreshCw, Rocket, Copy, CheckCircle2, ExternalLink } from "lucide-react";
+import { useState } from "react";
+
+const MOCK_COFOUNDERS = [
+  {
+    id: 1,
+    name: "Alex Chen",
+    role: "Designer with AI UX experience",
+    initials: "AC",
+    color: "from-blue-500 to-cyan-500",
+    skills: ["Figma", "UI/UX", "Design Systems"],
+  },
+  {
+    id: 2,
+    name: "Jordan Martinez",
+    role: "Backend cofounder from LinkedIn",
+    initials: "JM",
+    color: "from-purple-500 to-pink-500",
+    skills: ["Node.js", "Python", "AWS"],
+  },
+  {
+    id: 3,
+    name: "Sam Patel",
+    role: "Full-stack developer with startup experience",
+    initials: "SP",
+    color: "from-orange-500 to-red-500",
+    skills: ["React", "TypeScript", "Product"],
+  },
+];
+
+const PROMOTION_CHANNELS = [
+  { name: "Product Hunt", icon: "🚀" },
+  { name: "Hacker News", icon: "📰" },
+  { name: "IndieHackers", icon: "💡" },
+  { name: "Reddit", icon: "🤖" },
+  { name: "Twitter/X", icon: "🐦" },
+  { name: "LinkedIn", icon: "💼" },
+  { name: "Dev.to", icon: "👨‍💻" },
+  { name: "Beta List", icon: "🎯" },
+];
+
+export function LaunchPage() {
+  const navigate = useNavigate();
+  const projectName = sessionStorage.getItem("projectName") || "Your Startup";
+  const prompt = sessionStorage.getItem("startupPrompt") || "";
+  const [copied, setCopied] = useState(false);
+
+  const handleReRun = () => {
+    navigate("/");
+  };
+
+  const handleCopyPlan = () => {
+    const plan = `Launch Plan for ${projectName}
+
+Promotion Channels:
+${PROMOTION_CHANNELS.map((channel) => `• ${channel.name}`).join("\n")}
+
+Stack:
+• Frontend: Next.js + React
+• Backend: Supabase
+• Styling: Tailwind CSS
+• Deployment: Vercel
+
+Next Steps:
+1. Polish your MVP based on user feedback
+2. Reach out to potential cofounders
+3. Start promoting on recommended channels
+4. Set up analytics and feedback loops
+`;
+    navigator.clipboard.writeText(plan);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 px-6 py-12 relative overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-40 right-40 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute bottom-40 left-40 w-96 h-96 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+      </div>
+
+      <div className="max-w-[700px] mx-auto space-y-8 relative z-10">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-500 rounded-3xl shadow-2xl mb-4 animate-bounce">
+            <Rocket className="w-10 h-10 text-white" />
+          </div>
+          <div>
+            <h1 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Your Startup is Ready!</h1>
+            <p className="text-slate-600">Here's your roadmap to launch</p>
+          </div>
+        </div>
+
+        {/* Overview Card */}
+        <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
+            <CardTitle className="text-white mb-2">{projectName}</CardTitle>
+            <CardDescription className="text-indigo-100">{prompt}</CardDescription>
+          </div>
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-3">
+              <p className="text-slate-700">Tech Stack</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
+                  <Code className="w-3 h-3" />
+                  Next.js
+                </Badge>
+                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700">
+                  <Database className="w-3 h-3" />
+                  Supabase
+                </Badge>
+                <Badge variant="secondary" className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 text-orange-700">
+                  Tailwind CSS
+                </Badge>
+                <Badge variant="secondary" className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700">
+                  Vercel
+                </Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cofounder Suggestions */}
+        <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-lg">
+                <Users className="w-5 h-5 text-white" />
+              </div>
+              Cofounder Suggestions
+            </CardTitle>
+            <CardDescription>
+              Potential cofounders matched through Caffeine.ai
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {MOCK_COFOUNDERS.map((cofounder) => (
+              <div
+                key={cofounder.id}
+                className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 group"
+              >
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cofounder.color} flex items-center justify-center shadow-lg`}>
+                  <span className="text-white">{cofounder.initials}</span>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <p className="text-slate-900">{cofounder.name}</p>
+                    <p className="text-slate-600">{cofounder.role}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {cofounder.skills.map((skill) => (
+                      <Badge key={skill} variant="outline" className="bg-white/50">
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Promotion Channels */}
+        <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <div className="bg-gradient-to-br from-orange-500 to-red-500 p-2 rounded-lg">
+                <Megaphone className="w-5 h-5 text-white" />
+              </div>
+              Recommended Promotion Channels
+            </CardTitle>
+            <CardDescription>
+              Where to launch and get your first users
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {PROMOTION_CHANNELS.map((channel) => (
+                <div
+                  key={channel.name}
+                  className="p-4 rounded-xl bg-gradient-to-br from-white to-slate-50 border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 text-center group cursor-pointer"
+                >
+                  <div className="text-2xl mb-2 group-hover:scale-110 transition-transform">{channel.icon}</div>
+                  <p className="text-slate-700">{channel.name}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-4">
+          <Button 
+            onClick={handleCopyPlan} 
+            variant="outline" 
+            className="gap-2 bg-white/50 backdrop-blur-sm border-slate-300 hover:bg-white hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            {copied ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                Copy Launch Plan
+              </>
+            )}
+          </Button>
+          <Button 
+            onClick={handleReRun} 
+            variant="outline" 
+            className="gap-2 bg-white/50 backdrop-blur-sm border-slate-300 hover:bg-white hover:border-indigo-300 hover:shadow-md transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            New Startup
+          </Button>
+        </div>
+
+        {/* CTA */}
+        <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 border-0 shadow-2xl overflow-hidden">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Sparkles className="w-6 h-6 text-white" />
+              <h3 className="text-white">Ready to Launch?</h3>
+            </div>
+            <p className="text-indigo-100">
+              Your startup package is ready. Start building your dream today.
+            </p>
+            <Button 
+              variant="secondary" 
+              className="gap-2 bg-white hover:bg-slate-50 text-indigo-600 shadow-lg"
+              size="lg"
+            >
+              <ExternalLink className="w-4 h-4" />
+              View Full Resources
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <style>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+      `}</style>
+    </div>
+  );
+}
