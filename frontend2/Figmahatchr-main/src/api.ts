@@ -1,0 +1,52 @@
+// This file provides API functions for the UI in Figmahatchr-main
+
+import type {
+  GenerateRequest,
+  GenerateResponse,
+  StatusResponse,
+  ProjectResponse,
+} from "./types";
+
+const API_BASE_URL: string = import.meta.env.VITE_API_URL || "http://localhost:8001";
+
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    }
+    return await response.json();
+  } catch (error) {
+    throw error;
+  }
+}
+
+export const api = {
+  async generateStartup(request: GenerateRequest): Promise<GenerateResponse> {
+    return apiFetch<GenerateResponse>("/api/generate", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  },
+  async getStatus(jobId: string): Promise<StatusResponse> {
+    return apiFetch<StatusResponse>(`/api/status/${jobId}`);
+  },
+  async getProject(projectId: string): Promise<ProjectResponse> {
+    return apiFetch<ProjectResponse>(`/api/project/${projectId}`);
+  },
+  getDownloadUrl(projectId: string): string {
+    return `${API_BASE_URL}/api/download/${projectId}`;
+  },
+  async deployProject(projectId: string): Promise<{ status: string; message: string; deployment_url: string }> {
+    return apiFetch(`/api/deploy/${projectId}`, {
+      method: "POST",
+    });
+  },
+};

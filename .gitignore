@@ -18,6 +18,9 @@ frontend/out/
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
+frontend2/Figmahatchr-main/node_modules/
+frontend2/Figmahatchr-main/build/
+frontend2/Figmahatchr-main/.env
 
 # IDE
 .vscode/
