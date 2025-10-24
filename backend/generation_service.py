@@ -1,5 +1,5 @@
 """
-Generation Service - GPT-5 Analysis + Lovable Integration
+Generation Service - GPT-4o Analysis + Lovable Integration
 Simple, focused workflow: Analyze idea → Create Lovable URL
 """
 
@@ -22,12 +22,12 @@ def get_openai_client():
 
 
 class IdeaAnalyzer:
-    """GPT-5 for analyzing startup ideas and market research"""
+    """GPT-4o for analyzing startup ideas and market research"""
 
     @staticmethod
     async def analyze_idea(prompt: str) -> Dict:
         """
-        Use GPT-5 to analyze the startup idea and generate structured information
+        Use GPT-4o to analyze the startup idea and generate structured information
 
         Returns:
             {
@@ -62,14 +62,13 @@ Return as JSON with 'information' and 'structure' keys."""
         client = get_openai_client()
 
         response = await client.chat.completions.create(
-            model="gpt-5",  # Using GPT-5
+            model="gpt-4o",  # Using GPT-4o (stable and fast)
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format={"type": "json_object"}
-            # Note: GPT-5 doesn't support temperature parameter (default is 1)
-            # Can use reasoning_effort: "low" | "medium" | "high" instead
+            response_format={"type": "json_object"},
+            temperature=0.7
         )
 
         result = json.loads(response.choices[0].message.content)
