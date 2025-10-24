@@ -144,8 +144,8 @@ async def generate_full_stack_app(prompt: str, job_id: str, log_callback) -> Dic
         Dict with lovable_url and analysis
     """
 
-    # Step 1: Analyze idea with GPT-5
-    log_callback(job_id, "Analyzing your startup idea with GPT-5...", "info")
+    # Step 1: Analyze idea with GPT-4o
+    log_callback(job_id, "Analyzing your startup idea with GPT-4o...", "info")
 
     analysis = await IdeaAnalyzer.analyze_idea(prompt)
 

@@ -119,6 +119,23 @@ export default function Launch() {
               Click below to open Lovable and automatically build your app.
               The AI will create a complete, production-ready website based on your idea.
             </p>
+            <div className="bg-white rounded-lg border border-gray-300 p-3 mb-4">
+              <p className="text-xs font-medium text-gray-600 mb-1">Your Lovable Build URL:</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={project.lovable_url}
+                  readOnly
+                  className="flex-1 text-xs font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200"
+                />
+                <button
+                  onClick={() => navigator.clipboard.writeText(project.lovable_url)}
+                  className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
             <a
               href={project.lovable_url}
               target="_blank"
