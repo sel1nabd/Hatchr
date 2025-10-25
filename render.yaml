@@ -26,7 +26,7 @@ services:
   - type: static
     name: hatchr-frontend
     buildCommand: cd frontend2/Figmahatchr-main && npm install && npm run build
-    staticPublishPath: frontend2/Figmahatchr-main/dist
+    staticPublishPath: frontend2/Figmahatchr-main/build
     envVars:
       - key: VITE_API_URL
         value: https://hatchr.onrender.com
