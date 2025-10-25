@@ -7,7 +7,7 @@ import os
 from typing import Dict, Any, List
 import time
 from dotenv import load_dotenv
-from lpfuncs import generate_image_from_text
+from lpfuncs import generate_image_from_text, download_image_to_temp, refine_image_text_readability
 
 # Load environment variables
 load_dotenv()
@@ -80,32 +80,54 @@ def generate_pitch_deck(
     # SLIDE 1: TITLE SLIDE
     print("\n📊 Generating Slide 1/5: Title Slide...")
     slide_1_prompt = f"""
-Professional corporate presentation title slide in English language,
-large bold text displaying "{startup_name}" as company name centered on slide,
-subtitle text "Investor Pitch Deck" below the company name,
-clean minimalist layout, modern sans-serif font, high contrast black text on light background,
-simple geometric logo icon, business presentation aesthetic, crisp clear typography,
-all text must be in English, graphic design style, no photos or realistic imagery
+Minimalist corporate presentation title slide in English,
+only large bold text: "{startup_name}" centered as main headline,
+simple geometric icon logo above the text,
+solid light background, ultra-clean layout, no small text, no subtitles,
+modern sans-serif typography, high contrast, professional aesthetic,
+graphic design poster style, vector art, no photos
 """
     
     slide_1 = generate_image_from_text(
         prompt=slide_1_prompt.strip(),
-        negative_prompt="blurry text, unreadable font, non-English text, foreign language, small text, messy typography, low quality, photo, people, cluttered, distorted letters",
+        negative_prompt="small text, tiny font, descriptive text, paragraphs, unreadable text, blurry, non-English, foreign language, messy, photo, people, cluttered, complex details",
         width=1024,
         height=576,
-        guidance_scale=8.0,
+        guidance_scale=14.0,
         num_inference_steps=60,
         safety_check=True
     )
     
     if slide_1["success"] and slide_1["images"]:
-        slides.append({
+        image_url = slide_1["images"][0]["url"]
+        slide_entry = {
             "slide_number": 1,
             "title": "Title Slide",
-            "image_url": slide_1["images"][0]["url"],
+            "image_url": image_url,
             "prompt": slide_1_prompt.strip()
-        })
-        print(f"✅ Slide 1 generated: {slide_1['images'][0]['url']}")
+        }
+
+        # Attempt to download and refine the slide to improve text readability
+        try:
+            local_path = download_image_to_temp(image_url)
+            refine_prompt = (
+                "Enhance and render all visible text in English; make text bold, high contrast, "
+                "large, and readable at presentation size. Preserve layout and icons."
+            )
+            refined = refine_image_text_readability(local_path, refine_prompt)
+            if refined.get("success"):
+                # Prefer local refined path if available, otherwise use returned URL
+                if refined.get("image_path"):
+                    slide_entry["refined_image_path"] = refined.get("image_path")
+                else:
+                    slide_entry["refined_image_url"] = refined.get("image_url")
+            else:
+                slide_entry["refine_error"] = refined.get("error")
+        except Exception as e:
+            slide_entry["refine_error"] = str(e)
+
+        slides.append(slide_entry)
+        print(f"✅ Slide 1 generated: {image_url}")
         time.sleep(2)  # Small delay between requests
     else:
         return {
@@ -120,32 +142,51 @@ all text must be in English, graphic design style, no photos or realistic imager
     problem_context = f"addressing issues in {industry if industry else 'the market'}" if startup_idea else "solving key market inefficiencies"
     
     slide_2_prompt = f"""
-Corporate investor presentation slide in English with bold title "THE PROBLEM" at top,
-clean infographic layout showing bullet points: "Market Inefficiency", "Customer Pain Points", "Unmet Needs",
-modern business icons illustrating each problem, high contrast black text on white background,
-professional minimalist design, clear sans-serif typography with good spacing,
-typical venture capital pitch deck style, all text in English language,
-business diagram aesthetic, vector graphics, no photos or people
+Simple business slide in English with large bold title "THE PROBLEM" at top,
+three large icons with single-word labels only: "INEFFICIENCY", "COST", "TIME",
+minimalist icon-based layout, no paragraphs, no small text, no descriptions,
+high contrast bold text on clean white background, professional minimalist style,
+only show title and 3 large icons with one-word labels, vector graphics,
+no detailed text, no complex explanations
 """
     
     slide_2 = generate_image_from_text(
         prompt=slide_2_prompt.strip(),
-        negative_prompt="blurry text, small font, unreadable, non-English text, foreign characters, messy, low quality, photo, people, cluttered layout, distorted text",
+        negative_prompt="small text, tiny font, paragraphs, detailed descriptions, unreadable text, blurry, non-English, messy, photo, people, cluttered, long sentences",
         width=1024,
         height=576,
-        guidance_scale=8.0,
+        guidance_scale=14.0,
         num_inference_steps=60,
         safety_check=True
     )
     
     if slide_2["success"] and slide_2["images"]:
-        slides.append({
+        image_url = slide_2["images"][0]["url"]
+        slide_entry = {
             "slide_number": 2,
             "title": "The Problem",
-            "image_url": slide_2["images"][0]["url"],
+            "image_url": image_url,
             "prompt": slide_2_prompt.strip()
-        })
-        print(f"✅ Slide 2 generated: {slide_2['images'][0]['url']}")
+        }
+        try:
+            local_path = download_image_to_temp(image_url)
+            refine_prompt = (
+                "Enhance and render all visible text in English; make text bold, high contrast, "
+                "large, and readable at presentation size. Preserve layout and icons."
+            )
+            refined = refine_image_text_readability(local_path, refine_prompt)
+            if refined.get("success"):
+                if refined.get("image_path"):
+                    slide_entry["refined_image_path"] = refined.get("image_path")
+                else:
+                    slide_entry["refined_image_url"] = refined.get("image_url")
+            else:
+                slide_entry["refine_error"] = refined.get("error")
+        except Exception as e:
+            slide_entry["refine_error"] = str(e)
+
+        slides.append(slide_entry)
+        print(f"✅ Slide 2 generated: {image_url}")
         time.sleep(2)  # Small delay between requests
     else:
         print(f"⚠️  Slide 2 failed, continuing...")
@@ -156,32 +197,51 @@ business diagram aesthetic, vector graphics, no photos or people
     solution_features = f"{startup_name} platform" if startup_name else "our innovative platform"
     
     slide_3_prompt = f"""
-Business investor presentation slide in English with large title "OUR SOLUTION",
-product feature diagram showing: "Technology Platform", "User Experience", "Key Features",
-modern UI/UX visualization boxes with labeled components, clean arrow connections,
-high contrast readable English text labels, professional tech company presentation design,
-flow chart or system architecture style, minimalist blue and white color palette,
-crisp sans-serif typography, all text must be in English, no realistic photos, vector graphics only
+Minimalist business slide in English with large title "OUR SOLUTION",
+simple diagram showing 3 boxes connected by arrows,
+each box contains only single-word labels: "PLATFORM", "AUTOMATION", "INSIGHTS",
+clean geometric shapes, no detailed text, no small descriptions,
+high contrast bold text on light background, professional tech style,
+only large readable words, vector graphics, ultra-simple layout
 """
     
     slide_3 = generate_image_from_text(
         prompt=slide_3_prompt.strip(),
-        negative_prompt="blurry text, illegible font, non-English text, foreign language, small text, messy, low quality, photo, people, cluttered",
+        negative_prompt="small text, tiny font, paragraphs, detailed descriptions, long sentences, unreadable, blurry, non-English, photo, people, complex diagrams, cluttered",
         width=1024,
         height=576,
-        guidance_scale=8.0,
+        guidance_scale=14.0,
         num_inference_steps=60,
         safety_check=True
     )
     
     if slide_3["success"] and slide_3["images"]:
-        slides.append({
+        image_url = slide_3["images"][0]["url"]
+        slide_entry = {
             "slide_number": 3,
             "title": "Our Solution",
-            "image_url": slide_3["images"][0]["url"],
+            "image_url": image_url,
             "prompt": slide_3_prompt.strip()
-        })
-        print(f"✅ Slide 3 generated: {slide_3['images'][0]['url']}")
+        }
+        try:
+            local_path = download_image_to_temp(image_url)
+            refine_prompt = (
+                "Enhance and render all visible text in English; make text bold, high contrast, "
+                "large, and readable at presentation size. Preserve layout and icons."
+            )
+            refined = refine_image_text_readability(local_path, refine_prompt)
+            if refined.get("success"):
+                if refined.get("image_path"):
+                    slide_entry["refined_image_path"] = refined.get("image_path")
+                else:
+                    slide_entry["refined_image_url"] = refined.get("image_url")
+            else:
+                slide_entry["refine_error"] = refined.get("error")
+        except Exception as e:
+            slide_entry["refine_error"] = str(e)
+
+        slides.append(slide_entry)
+        print(f"✅ Slide 3 generated: {image_url}")
         time.sleep(2)  # Small delay between requests
     else:
         print(f"⚠️  Slide 3 failed, continuing...")
@@ -192,33 +252,52 @@ crisp sans-serif typography, all text must be in English, no realistic photos, v
     market_info = target_market if target_market else "B2B SaaS market"
     
     slide_4_prompt = f"""
-Corporate VC pitch deck slide in English with bold headline "MARKET OPPORTUNITY",
-data visualization showing: "TAM: $10B", "SAM: $2B", "SOM: $500M" as large numbers,
-bar charts showing market growth with "45% CAGR" label, upward trend green arrows,
-professional infographic style with readable English labels and legends,
-text: "Target Market", "Growth Rate", "Market Size", high contrast black text on light background,
-clean modern business analytics layout, vector graphics, all text in English language,
-no photos or people, clear typography throughout
+Clean business slide in English with large title "MARKET OPPORTUNITY",
+show only 3 large numbers: "$10B", "$2B", "$500M" displayed prominently,
+simple labels above numbers: "TAM", "SAM", "SOM",
+one large upward arrow with "45%" text,
+no paragraphs, no small text, no detailed descriptions,
+minimalist infographic with only big bold numbers and single-word labels,
+high contrast, clean white background, vector graphics style
 """
     
     slide_4 = generate_image_from_text(
         prompt=slide_4_prompt.strip(),
-        negative_prompt="blurry text, tiny numbers, illegible labels, non-English text, foreign characters, messy, low quality, photo, people, cluttered data",
+        negative_prompt="small text, tiny font, detailed descriptions, paragraphs, long sentences, unreadable numbers, blurry, non-English, photo, people, cluttered, complex charts",
         width=1024,
         height=576,
-        guidance_scale=8.0,
+        guidance_scale=14.0,
         num_inference_steps=60,
         safety_check=True
     )
     
     if slide_4["success"] and slide_4["images"]:
-        slides.append({
+        image_url = slide_4["images"][0]["url"]
+        slide_entry = {
             "slide_number": 4,
             "title": "Market Opportunity",
-            "image_url": slide_4["images"][0]["url"],
+            "image_url": image_url,
             "prompt": slide_4_prompt.strip()
-        })
-        print(f"✅ Slide 4 generated: {slide_4['images'][0]['url']}")
+        }
+        try:
+            local_path = download_image_to_temp(image_url)
+            refine_prompt = (
+                "Enhance and render all visible text in English; make text bold, high contrast, "
+                "large, and readable at presentation size. Preserve layout and icons."
+            )
+            refined = refine_image_text_readability(local_path, refine_prompt)
+            if refined.get("success"):
+                if refined.get("image_path"):
+                    slide_entry["refined_image_path"] = refined.get("image_path")
+                else:
+                    slide_entry["refined_image_url"] = refined.get("image_url")
+            else:
+                slide_entry["refine_error"] = refined.get("error")
+        except Exception as e:
+            slide_entry["refine_error"] = str(e)
+
+        slides.append(slide_entry)
+        print(f"✅ Slide 4 generated: {image_url}")
         time.sleep(2)  # Small delay between requests
     else:
         print(f"⚠️  Slide 4 failed, continuing...")
@@ -229,33 +308,52 @@ no photos or people, clear typography throughout
     biz_model = business_model if business_model else "SaaS subscription model"
     
     slide_5_prompt = f"""
-Professional investor presentation slide in English with prominent title "BUSINESS MODEL",
-revenue stream diagram showing boxes labeled: "Subscription Revenue", "Enterprise Sales", "Platform Fees",
-pricing tier table with: "Free Tier: $0/month", "Pro: $29/month", "Enterprise: Custom",
-customer journey funnel with arrows showing conversion flow, dollar signs and revenue icons,
-clean infographic design with high contrast black text on white background,
-modern sans-serif typography, vector graphics style, all text must be in English language,
-typical VC pitch deck financial slide, no photos or realistic imagery, organized layout
+Simple business slide in English with large title "BUSINESS MODEL",
+show 3 pricing boxes side by side with only large text:
+"FREE", "$29", "CUSTOM",
+simple dollar sign icon, clean boxes layout, no detailed features list,
+no small text, no descriptions, no bullet points,
+minimalist pricing tier visualization, high contrast bold text,
+white background, professional vector graphics, ultra-clean design
 """
     
     slide_5 = generate_image_from_text(
         prompt=slide_5_prompt.strip(),
-        negative_prompt="blurry text, small font, illegible, non-English text, foreign language, messy layout, low quality, photo, people, cluttered, distorted",
+        negative_prompt="small text, tiny font, detailed descriptions, feature lists, paragraphs, long text, unreadable, blurry, non-English, photo, people, cluttered, complex diagrams",
         width=1024,
         height=576,
-        guidance_scale=8.0,
+        guidance_scale=14.0,
         num_inference_steps=60,
         safety_check=True
     )
     
     if slide_5["success"] and slide_5["images"]:
-        slides.append({
+        image_url = slide_5["images"][0]["url"]
+        slide_entry = {
             "slide_number": 5,
             "title": "Business Model",
-            "image_url": slide_5["images"][0]["url"],
+            "image_url": image_url,
             "prompt": slide_5_prompt.strip()
-        })
-        print(f"✅ Slide 5 generated: {slide_5['images'][0]['url']}")
+        }
+        try:
+            local_path = download_image_to_temp(image_url)
+            refine_prompt = (
+                "Enhance and render all visible text in English; make text bold, high contrast, "
+                "large, and readable at presentation size. Preserve layout and icons."
+            )
+            refined = refine_image_text_readability(local_path, refine_prompt)
+            if refined.get("success"):
+                if refined.get("image_path"):
+                    slide_entry["refined_image_path"] = refined.get("image_path")
+                else:
+                    slide_entry["refined_image_url"] = refined.get("image_url")
+            else:
+                slide_entry["refine_error"] = refined.get("error")
+        except Exception as e:
+            slide_entry["refine_error"] = str(e)
+
+        slides.append(slide_entry)
+        print(f"✅ Slide 5 generated: {image_url}")
     else:
         print(f"⚠️  Slide 5 failed, continuing...")
     

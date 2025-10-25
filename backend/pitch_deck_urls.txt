@@ -3,36 +3,23 @@ PITCH DECK: FlowMaster
 ================================================================================
 
 Slide 1: Title Slide
-URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/e2d96537/79a2bedd.png
-Prompt: Professional corporate presentation title slide with large bold text displaying "FlowMaster" as the ...
+URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/f78560b6/3ce900ba.png
+Prompt: Minimalist corporate presentation title slide in English,
+only large bold text: "FlowMaster" centere...
 
 --------------------------------------------------------------------------------
 
 Slide 2: The Problem
-URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/c738cdf8/406d2956.png
-Prompt: Corporate presentation slide with bold title "THE PROBLEM" at the top,
-clean infographic layout show...
-
---------------------------------------------------------------------------------
-
-Slide 3: Our Solution
-URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/b8023125/275e8286.png
-Prompt: Business presentation slide with large clear title "OUR SOLUTION" prominently displayed,
-product fea...
-
---------------------------------------------------------------------------------
-
-Slide 4: Market Opportunity
-URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/1134fc40/c6b214fa.png
-Prompt: Corporate presentation slide with bold headline "MARKET OPPORTUNITY",
-data visualization with large ...
+URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/1b200bd3/e44bc6c3.png
+Prompt: Simple business slide in English with large bold title "THE PROBLEM" at top,
+three large icons with ...
 
 --------------------------------------------------------------------------------
 
 Slide 5: Business Model
-URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/344333b3/eb690cf4.png
-Prompt: Professional presentation slide with prominent title "BUSINESS MODEL",
-revenue stream diagram with c...
+URL: https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/4d6a4107/c6c10f12.png
+Prompt: Simple business slide in English with large title "BUSINESS MODEL",
+show 3 pricing boxes side by sid...
 
 --------------------------------------------------------------------------------
 

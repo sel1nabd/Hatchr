@@ -6,6 +6,10 @@ Handles text-to-image and image-to-video generation using Livepeer AI SDK
 import os
 from typing import Optional, Dict, Any
 from livepeer_ai import Livepeer
+import requests
+import tempfile
+import time
+import shutil
 
 
 def get_livepeer_client() -> Livepeer:
@@ -93,6 +97,133 @@ def generate_image_from_text(
                 "error": str(e),
                 "images": []
             }
+
+
+def download_image_to_temp(image_url: str) -> str:
+    """Download an image URL to a temporary file and return the local path."""
+    try:
+        response = requests.get(image_url, timeout=30)
+        response.raise_for_status()
+        temp_dir = tempfile.gettempdir()
+        fname = f"lp_image_{os.urandom(8).hex()}.png"
+        path = os.path.join(temp_dir, fname)
+        with open(path, 'wb') as f:
+            f.write(response.content)
+        return path
+    except Exception as e:
+        raise RuntimeError(f"Failed to download image: {e}")
+
+
+def refine_image_text_readability(
+    image_path: str,
+    prompt: str,
+    model_id: str = "black-forest-labs/FLUX.1-Kontext-dev",
+    strength: float = 0.8,
+    guidance_scale: float = 14.0,
+    image_guidance_scale: float = 2.0,
+    negative_prompt: str = "",
+    num_inference_steps: int = 100,
+    safety_check: bool = True,
+    max_retries: int = 4,
+    backoff_seconds: float = 5.0,
+) -> Dict[str, Any]:
+    """
+    Use Livepeer's image-to-image to enhance text legibility on a slide image.
+
+    - Downloads are not required (pass local file path).
+    - Retries on transient errors (503) with exponential backoff to allow model warmup.
+    - Returns dict with success, image_path (local or remote url), and raw_response.
+    """
+    attempt = 0
+    last_error = None
+
+    while attempt < max_retries:
+        attempt += 1
+        try:
+            with get_livepeer_client() as livepeer:
+                # Open file as binary as required by SDK
+                with open(image_path, 'rb') as f:
+                    print(f"🔧 [refine] Sending image_to_image request (attempt {attempt}) to model {model_id}...")
+                    res = livepeer.generate.image_to_image(request={
+                        "prompt": prompt,
+                        "image": {
+                            "file_name": os.path.basename(image_path),
+                            "content": f,
+                        },
+                        "model_id": model_id,
+                        "loras": "",
+                        "strength": strength,
+                        "guidance_scale": guidance_scale,
+                        "image_guidance_scale": image_guidance_scale,
+                        "negative_prompt": negative_prompt,
+                        "safety_check": safety_check,
+                        "num_inference_steps": num_inference_steps,
+                        "num_images_per_prompt": 1,
+                    })
+
+                # Check response
+                if getattr(res, 'image_response', None) is None:
+                    raise Exception("No image_response returned from image_to_image")
+
+                # Attempt to extract returned image URL
+                img_url = None
+                images = []
+                if hasattr(res.image_response, 'images') and res.image_response.images:
+                    for img in res.image_response.images:
+                        url = img.url if hasattr(img, 'url') else None
+                        images.append({
+                            "url": url,
+                            "seed": getattr(img, 'seed', None),
+                            "nsfw": getattr(img, 'nsfw', None)
+                        })
+                        if not img_url and url:
+                            img_url = url
+
+                # If we got a remote URL, download it to a temp file and return the path
+                if img_url:
+                    try:
+                        refined_path = download_image_to_temp(img_url)
+                        return {
+                            "success": True,
+                            "image_path": refined_path,
+                            "image_url": img_url,
+                            "images": images,
+                            "raw_response": res.image_response
+                        }
+                    except Exception as e:
+                        # If download failed, still return the URL
+                        return {
+                            "success": True,
+                            "image_path": None,
+                            "image_url": img_url,
+                            "images": images,
+                            "raw_response": res.image_response,
+                            "warning": f"Could not download refined image locally: {e}"
+                        }
+
+                # If no URL but images present, still return raw images structure
+                return {
+                    "success": True,
+                    "image_path": None,
+                    "image_url": None,
+                    "images": images,
+                    "raw_response": res.image_response
+                }
+
+        except Exception as e:
+            last_error = e
+            err_str = str(e)
+            # If 503-like error, wait and retry to allow warmup
+            if '503' in err_str or 'Service Unavailable' in err_str or 'timed out' in err_str.lower():
+                wait = backoff_seconds * attempt
+                print(f"⚠️ [refine] Transient error (attempt {attempt}): {err_str}. Waiting {wait}s before retrying...")
+                time.sleep(wait)
+                continue
+            else:
+                # Non-retryable
+                return {"success": False, "error": err_str}
+
+    return {"success": False, "error": f"All retries failed: {last_error}"}
 
 
 def generate_video_from_image(
