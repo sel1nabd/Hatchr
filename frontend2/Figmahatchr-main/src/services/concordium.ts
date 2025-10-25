@@ -246,6 +246,7 @@ export function createHatchrIdentityStatement() {
       {
         type: 'AttributeInRange',
         attributeTag: 'dob', // Date of birth
+        lower: '18000101', // Lower bound (very old)
         upper: `${eighteenYearsAgo}1231`, // Must be born before 18 years ago
       },
       {
