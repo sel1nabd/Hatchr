@@ -5,11 +5,19 @@ No external API calls needed - all projects hosted from single deployment
 """
 
 import os
+import logging
 from typing import Dict, Optional
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("deploy_service")
 
 # Legacy environment variables (kept for backward compatibility)
 RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
@@ -45,15 +53,18 @@ class MultiTenantDeployer:
             }
         """
 
-        print("=" * 80)
-        print("🚀 DEPLOYING TO MULTI-TENANT HOST")
-        print(f"   Project: {project_name}")
-        print(f"   Project ID: {project_id}")
-        print(f"   Base URL: {base_url}")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("🚀 DEPLOYING TO MULTI-TENANT HOST")
+        logger.info(f"   Project: {project_name}")
+        logger.info(f"   Project ID: {project_id}")
+        logger.info(f"   Base URL: {base_url}")
+        logger.info(f"   Code Length: {len(main_py_code)} characters")
+        logger.info("=" * 80)
 
         # Import the multi-tenant host
         from multitenant_service import multitenant_host
+
+        logger.info(f"📦 Loading project into multi-tenant host...")
 
         # Load the project into the host
         success = multitenant_host.load_project_app(
@@ -63,17 +74,22 @@ class MultiTenantDeployer:
         )
 
         if not success:
+            logger.error(f"❌ Failed to load project into multi-tenant host")
             raise Exception(f"Failed to load project {project_name} into multi-tenant host")
+
+        logger.info(f"✅ Project loaded successfully")
 
         # Construct URLs
         live_url = f"{base_url}/projects/{project_id}"
         api_docs_url = f"{base_url}/projects/{project_id}/docs"
 
-        print("✅ DEPLOYMENT SUCCESSFUL!")
-        print(f"   Service ID: {project_id}")
-        print(f"   Live URL: {live_url}")
-        print(f"   API Docs: {api_docs_url}")
-        print("=" * 80)
+        logger.info("=" * 80)
+        logger.info("✅ DEPLOYMENT SUCCESSFUL!")
+        logger.info(f"   Service ID: {project_id}")
+        logger.info(f"   Live URL: {live_url}")
+        logger.info(f"   API Docs: {api_docs_url}")
+        logger.info(f"   Hosting Type: Multi-Tenant")
+        logger.info("=" * 80)
 
         return {
             "service_id": project_id,
@@ -101,15 +117,19 @@ class MultiTenantDeployer:
 
         from multitenant_service import multitenant_host
 
+        logger.info(f"🔍 Checking status of project: {project_id}")
+
         app = multitenant_host.get_app(project_id)
 
         if app:
             base_url = os.getenv("HATCHR_PUBLIC_URL", "http://localhost:8001")
+            logger.info(f"✅ Project {project_id} is LIVE")
             return {
                 "status": "live",
                 "url": f"{base_url}/projects/{project_id}",
             }
         else:
+            logger.warning(f"⚠️  Project {project_id} is NOT LOADED")
             return {
                 "status": "not_loaded",
                 "url": "",
@@ -138,8 +158,9 @@ class DeploymentManager:
             Deployment info with live_url
         """
 
-        print(f"\n🌐 Multi-Tenant Deployment")
-        print(f"   Base URL: {base_url}\n")
+        logger.info(f"\n🌐 MULTI-TENANT DEPLOYMENT MANAGER")
+        logger.info(f"   Base URL: {base_url}")
+        logger.info(f"   Project: {project_name}\n")
 
         # Deploy to multi-tenant host
         deployment = MultiTenantDeployer.deploy_project(
@@ -148,5 +169,8 @@ class DeploymentManager:
             base_url=base_url,
             main_py_code=main_py_code
         )
+
+        logger.info(f"✅ Deployment manager completed")
+        logger.info(f"   Deployment URL: {deployment.get('live_url')}")
 
         return deployment

@@ -5,9 +5,17 @@ SQLite database with async support via aiosqlite
 
 import aiosqlite
 import os
+import logging
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("database")
 
 DATABASE_PATH = Path(__file__).parent / "hatchr.db"
 
@@ -222,6 +230,13 @@ async def store_generated_project(
     """Store generated project code in database"""
     import json
 
+    logger.info(f"=" * 80)
+    logger.info(f"💾 STORING PROJECT IN DATABASE")
+    logger.info(f"   Project: {project_name}")
+    logger.info(f"   Project ID: {project_id}")
+    logger.info(f"   Files: {list(files.keys())}")
+    logger.info(f"=" * 80)
+
     now = datetime.utcnow().isoformat()
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
@@ -244,10 +259,16 @@ async def store_generated_project(
         )
         await db.commit()
 
+    logger.info(f"✅ Project stored successfully in database")
+    logger.info(f"   Database: {DATABASE_PATH}")
+    logger.info(f"=" * 80)
+
 
 async def get_generated_project(project_id: str) -> Optional[Dict[str, Any]]:
     """Retrieve generated project from database"""
     import json
+
+    logger.info(f"🔍 Retrieving project from database: {project_id}")
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -258,6 +279,9 @@ async def get_generated_project(project_id: str) -> Optional[Dict[str, Any]]:
             row = await cursor.fetchone()
             if row:
                 project = dict(row)
+                logger.info(f"✅ Found project: {project.get('project_name')}")
+                logger.info(f"   Created: {project.get('created_at')}")
+
                 # Parse spec JSON
                 if project.get('spec_json'):
                     project['spec'] = json.loads(project['spec_json'])
@@ -267,8 +291,12 @@ async def get_generated_project(project_id: str) -> Optional[Dict[str, Any]]:
                     'requirements.txt': project['requirements_txt'],
                     'README.md': project.get('readme_md', '')
                 }
+
+                logger.info(f"   Files reconstructed: {list(project['files'].keys())}")
                 return project
-            return None
+            else:
+                logger.warning(f"⚠️  Project not found in database: {project_id}")
+                return None
 
 
 async def list_all_generated_projects() -> list:

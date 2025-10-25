@@ -17,7 +17,16 @@ import asyncio
 import math
 import secrets
 import hashlib
+import logging
+import time
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("hatchr_main")
 
 # Import our services
 from generation_service import generate_startup_backend
@@ -38,6 +47,42 @@ app = FastAPI(
     version="2.0.0",
     description="AI-powered startup generator with GPT-4o + Sonnet 4.5"
 )
+
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests and responses"""
+    start_time = time.time()
+
+    logger.info(f"=" * 80)
+    logger.info(f"📥 INCOMING REQUEST")
+    logger.info(f"   Method: {request.method}")
+    logger.info(f"   Path: {request.url.path}")
+    logger.info(f"   Query Params: {dict(request.query_params)}")
+    logger.info(f"   Client: {request.client.host if request.client else 'Unknown'}")
+    logger.info(f"=" * 80)
+
+    try:
+        response = await call_next(request)
+        duration = time.time() - start_time
+
+        logger.info(f"=" * 80)
+        logger.info(f"📤 RESPONSE SENT")
+        logger.info(f"   Status Code: {response.status_code}")
+        logger.info(f"   Duration: {duration:.3f}s")
+        logger.info(f"   Path: {request.url.path}")
+        logger.info(f"=" * 80)
+
+        return response
+    except Exception as e:
+        duration = time.time() - start_time
+        logger.error(f"=" * 80)
+        logger.error(f"❌ REQUEST FAILED")
+        logger.error(f"   Path: {request.url.path}")
+        logger.error(f"   Duration: {duration:.3f}s")
+        logger.error(f"   Error: {str(e)}")
+        logger.error(f"=" * 80)
+        raise
 
 # CORS middleware for Next.js frontend
 app.add_middleware(
