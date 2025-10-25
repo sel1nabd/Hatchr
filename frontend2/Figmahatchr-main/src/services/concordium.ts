@@ -7,6 +7,10 @@ import {
   detectConcordiumProvider,
   WalletApi,
 } from '@concordium/browser-wallet-api-helpers';
+import {
+  CredentialStatement,
+  AtomicStatementV2,
+} from '@concordium/web-sdk';
 
 export interface IdentityStatement {
   type: 'AttributeInRange' | 'AttributeInSet';
@@ -126,7 +130,7 @@ class ConcordiumWalletService {
    */
   async requestIdentityProof(
     challenge: string,
-    statement: any
+    statement: CredentialStatement
   ): Promise<VerifiablePresentation> {
     console.log('[Concordium] 🎫 Starting identity proof request...');
     console.log('[Concordium] Challenge:', challenge);
@@ -231,13 +235,13 @@ export const concordiumWallet = new ConcordiumWalletService();
  * Create identity statement for Hatchr signup
  * Requires: age 18+, valid country of residence
  */
-export function createHatchrIdentityStatement() {
+export function createHatchrIdentityStatement(): CredentialStatement {
   // Calculate date range for 18+ years old
   const currentYear = new Date().getFullYear();
   const eighteenYearsAgo = currentYear - 18;
 
   // Concordium requires a CredentialStatement with idQualifier and statement array
-  const statement = {
+  const statement: CredentialStatement = {
     idQualifier: {
       type: 'cred',
       issuers: [0, 1, 2, 3, 4, 5, 6, 7], // All identity providers
@@ -260,7 +264,7 @@ export function createHatchrIdentityStatement() {
           'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'HR',
         ],
       },
-    ],
+    ] as AtomicStatementV2[],
   };
 
   console.log('[Concordium] Generated statement:', JSON.stringify(statement, null, 2));
