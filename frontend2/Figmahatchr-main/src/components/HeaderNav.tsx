@@ -41,19 +41,7 @@ export default function HeaderNav() {
             }
           >
             <Users className="w-4 h-4" />
-            <span>Finder</span>
-          </NavLink>
-          <NavLink
-            to="/cofounder/profile"
-            className={({ isActive }) =>
-              cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
-                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
-              )
-            }
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Profile</span>
+            <span>Founder Finder</span>
           </NavLink>
         </nav>
       </div>
