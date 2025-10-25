@@ -298,6 +298,76 @@ Next Steps:
         </CardContent>
       </Card>
 
+        {/* Marketing Assets - Logo & Pitch Deck */}
+        {projectData?.marketing_assets && (
+          <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <div className="bg-gradient-to-br from-pink-600 to-purple-600 p-2 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                Marketing Assets
+              </CardTitle>
+              <CardDescription>
+                AI-generated logo and pitch deck using Livepeer AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Startup Logo */}
+              {projectData.marketing_assets.logo?.logo_url && (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-slate-700">Startup Logo</p>
+                  <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-6 flex items-center justify-center">
+                    <img
+                      src={projectData.marketing_assets.logo.logo_url}
+                      alt="Startup Logo"
+                      className="max-w-full max-h-64 object-contain rounded-lg shadow-lg"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(projectData.marketing_assets.logo.logo_url, '_blank')}
+                      className="gap-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      View Full Size
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Pitch Deck Slides */}
+              {projectData.marketing_assets.pitch_deck?.slides && projectData.marketing_assets.pitch_deck.slides.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-slate-700">
+                    Pitch Deck ({projectData.marketing_assets.pitch_deck.total_slides || projectData.marketing_assets.pitch_deck.slides.length} slides)
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {projectData.marketing_assets.pitch_deck.slides.map((slide: any) => (
+                      <div key={slide.slide_number} className="space-y-2">
+                        <p className="text-xs text-slate-600">Slide {slide.slide_number}: {slide.title}</p>
+                        <div className="rounded-lg border border-slate-200 bg-white p-2 hover:shadow-lg transition-shadow cursor-pointer"
+                             onClick={() => window.open(slide.image_url, '_blank')}>
+                          <img
+                            src={slide.refined_image_url || slide.image_url}
+                            alt={`Slide ${slide.slide_number}: ${slide.title}`}
+                            className="w-full h-auto rounded"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Click any slide to view full size
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Cofounder Suggestions */}
         <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl">
           <CardHeader>
