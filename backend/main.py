@@ -721,7 +721,7 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         add_log(job_id, "🚀 Deploying to Render.com...", "info")
 
         # Create zip download URL for Render to fetch
-        base_url = os.getenv("BASE_URL", "https://hatchr.onrender.com")
+        base_url = "http://localhost:8001"  # TODO: Use actual public URL
 
         deployment = RenderDeployer.deploy_project(
             project_id=project_id,

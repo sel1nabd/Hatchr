@@ -1,4 +1,5 @@
 services:
+  # Backend API
   - type: web
     name: hatchr-backend
     runtime: python
@@ -20,3 +21,12 @@ services:
         value: https://node.testnet.concordium.com
       - key: LIVEPEER_API_KEY
         sync: false
+
+  # Frontend
+  - type: static
+    name: hatchr-frontend
+    buildCommand: cd frontend2/Figmahatchr-main && npm install && npm run build
+    staticPublishPath: frontend2/Figmahatchr-main/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://hatchr.onrender.com
