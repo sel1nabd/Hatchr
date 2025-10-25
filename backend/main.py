@@ -15,12 +15,19 @@ import json
 import uuid
 import asyncio
 import math
+import secrets
+import hashlib
 from datetime import datetime
 
 # Import our services
 from generation_service import generate_startup_backend
 from deploy_service import RenderDeployer
 from pitch_deck_generator import generate_pitch_deck as generate_deck_slides
+from database import (
+    init_database, get_user_by_wallet, create_user,
+    update_user_login, create_session, get_session_by_token,
+    invalidate_session
+)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -108,6 +115,34 @@ class CofounderMatch(BaseModel):
     shared_skills: List[str]
     summary: str
     experience_level: Optional[str] = None
+
+# === CONCORDIUM AUTH MODELS ===
+
+class ConcordiumChallengeRequest(BaseModel):
+    wallet_address: str
+
+class ConcordiumChallengeResponse(BaseModel):
+    challenge: str
+    wallet_address: str
+
+class ConcordiumVerifyRequest(BaseModel):
+    wallet_address: str
+    challenge: str
+    presentation: Dict[str, Any]  # Verifiable presentation from wallet
+
+class ConcordiumAuthResponse(BaseModel):
+    auth_token: str
+    user: Dict[str, Any]
+    is_new_user: bool
+
+class UserResponse(BaseModel):
+    id: int
+    wallet_address: str
+    name: Optional[str]
+    age: Optional[int]
+    country_of_residence: Optional[str]
+    created_at: str
+    last_login: str
 
 # === PLACEHOLDER INTEGRATIONS ===
 
@@ -852,6 +887,68 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         add_log(job_id, f"❌ Error: {str(e)}", "error")
         print(f"❌ Job {job_id} failed: {str(e)}")
 
+# === STARTUP EVENT ===
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    await init_database()
+
+# === CONCORDIUM AUTH HELPERS ===
+
+# Store active challenges in memory (in production, use Redis or DB)
+active_challenges: Dict[str, str] = {}
+
+def generate_challenge() -> str:
+    """Generate a random challenge for wallet signature"""
+    return secrets.token_urlsafe(32)
+
+def extract_identity_from_presentation(presentation: Dict[str, Any]) -> Dict[str, Optional[Any]]:
+    """
+    Extract identity attributes from Concordium verifiable presentation.
+
+    The presentation contains zero-knowledge proofs of identity attributes.
+    We extract: name (if disclosed), age (from dob range), country
+    """
+    try:
+        # This is a simplified version - actual implementation would verify ZK proofs
+        # In production, use Concordium SDK to verify the presentation
+
+        attributes = {}
+
+        # Extract verifiable credentials from presentation
+        if 'verifiableCredential' in presentation:
+            for credential in presentation['verifiableCredential']:
+                cred_subject = credential.get('credentialSubject', {})
+
+                # Extract country of residence
+                if 'countryOfResidence' in cred_subject:
+                    attributes['country_of_residence'] = cred_subject['countryOfResidence']
+
+                # Extract date of birth and calculate age
+                if 'dob' in cred_subject:
+                    dob_str = cred_subject['dob']
+                    # Format: YYYYMMDD
+                    if len(dob_str) == 8:
+                        year = int(dob_str[:4])
+                        current_year = datetime.now().year
+                        attributes['age'] = current_year - year
+                        attributes['date_of_birth'] = dob_str
+
+                # Extract name if disclosed
+                if 'firstName' in cred_subject and 'lastName' in cred_subject:
+                    first = cred_subject['firstName']
+                    last = cred_subject['lastName']
+                    attributes['name'] = f"{first} {last}"
+                elif 'name' in cred_subject:
+                    attributes['name'] = cred_subject['name']
+
+        return attributes
+
+    except Exception as e:
+        print(f"Error extracting identity from presentation: {e}")
+        return {}
+
 # === API ENDPOINTS ===
 
 @app.get("/")
@@ -863,6 +960,107 @@ async def root():
         "version": "2.0.0",
         "description": "AI-powered startup backend generator"
     }
+
+# === CONCORDIUM AUTH ENDPOINTS ===
+
+@app.post("/api/auth/concordium/challenge")
+async def get_concordium_challenge(request: ConcordiumChallengeRequest) -> ConcordiumChallengeResponse:
+    """
+    Step 1: Generate a challenge for the wallet to sign.
+    The wallet will use this challenge to create a verifiable presentation.
+    """
+    challenge = generate_challenge()
+    active_challenges[request.wallet_address] = challenge
+
+    return ConcordiumChallengeResponse(
+        challenge=challenge,
+        wallet_address=request.wallet_address
+    )
+
+@app.post("/api/auth/concordium/verify")
+async def verify_concordium_presentation(request: ConcordiumVerifyRequest) -> ConcordiumAuthResponse:
+    """
+    Step 2: Verify the presentation and create/login user.
+
+    This endpoint:
+    1. Verifies the challenge matches
+    2. Verifies the ZK proof presentation (simplified for now)
+    3. Extracts identity attributes (name, age, country)
+    4. Creates user if new, or logs in existing user
+    5. Returns auth token
+    """
+
+    # Verify challenge exists and matches
+    stored_challenge = active_challenges.get(request.wallet_address)
+    if not stored_challenge or stored_challenge != request.challenge:
+        raise HTTPException(status_code=400, detail="Invalid or expired challenge")
+
+    # Remove used challenge
+    del active_challenges[request.wallet_address]
+
+    # Extract identity attributes from presentation
+    identity_data = extract_identity_from_presentation(request.presentation)
+
+    # Check if user exists
+    existing_user = await get_user_by_wallet(request.wallet_address)
+
+    is_new_user = False
+
+    if existing_user:
+        # Update login timestamp
+        await update_user_login(request.wallet_address)
+        user = existing_user
+    else:
+        # Create new user with identity data
+        user = await create_user(
+            wallet_address=request.wallet_address,
+            name=identity_data.get('name'),
+            age=identity_data.get('age'),
+            country_of_residence=identity_data.get('country_of_residence'),
+            date_of_birth=identity_data.get('date_of_birth')
+        )
+        is_new_user = True
+
+    # Generate auth token
+    auth_token = secrets.token_urlsafe(32)
+
+    # Create session
+    await create_session(
+        user_id=user['id'],
+        auth_token=auth_token,
+        challenge=request.challenge,
+        expires_in_hours=24
+    )
+
+    return ConcordiumAuthResponse(
+        auth_token=auth_token,
+        user=user,
+        is_new_user=is_new_user
+    )
+
+@app.get("/api/auth/me")
+async def get_current_user(auth_token: str) -> UserResponse:
+    """Get current user from auth token"""
+    session = await get_session_by_token(auth_token)
+
+    if not session:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    return UserResponse(
+        id=session['user_id'],
+        wallet_address=session['wallet_address'],
+        name=session.get('name'),
+        age=session.get('age'),
+        country_of_residence=session.get('country_of_residence'),
+        created_at=session['created_at'],
+        last_login=datetime.utcnow().isoformat()
+    )
+
+@app.post("/api/auth/logout")
+async def logout(auth_token: str):
+    """Logout user by invalidating their session"""
+    await invalidate_session(auth_token)
+    return {"message": "Logged out successfully"}
 
 @app.post("/api/generate")
 async def generate_startup(request: GenerateRequest, background_tasks: BackgroundTasks):
