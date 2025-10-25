@@ -4,11 +4,12 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
-import { Sparkles, Zap, TrendingUp, Rocket, Users, Figma as FigmaIcon } from "lucide-react";
+import { Sparkles, Zap, TrendingUp, Rocket, Users, Figma as FigmaIcon, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { api } from "../api";
 import type { CofounderMatch, CofounderRequest } from "../types";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 export function PromptPage() {
   const [prompt, setPrompt] = useState("");
@@ -17,12 +18,14 @@ export function PromptPage() {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [matches, setMatches] = useState<CofounderMatch[] | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
+  const [desiredRoles, setDesiredRoles] = useState<string[]>([]);
 
   const handleGenerate = () => {
     if (prompt.trim()) {
       // Store the prompt and verified status in sessionStorage
       sessionStorage.setItem("startupPrompt", prompt);
       sessionStorage.setItem("isVerified", String(isVerified));
+      sessionStorage.setItem("desiredRoles", JSON.stringify(desiredRoles));
       navigate("/generate");
     }
   };
@@ -45,6 +48,17 @@ export function PromptPage() {
       .join("")
       .toUpperCase();
 
+  const ROLE_SKILL_MAP: Record<string, string[]> = {
+    CMO: ["Marketing", "Growth", "SEO", "Brand", "Content"],
+    CTO: ["Full-Stack", "DevOps", "Cloud Architecture", "Node.js"],
+    "Tech Lead": ["Engineering Leadership", "Architecture", "TypeScript"],
+    Designer: ["Design", "Figma", "UX", "UI/UX"],
+    "Sales Lead": ["Sales", "BD", "Partnerships"],
+    COO: ["Operations", "Finance", "Analytics"],
+    "Data Scientist": ["ML", "Data Science", "Python"],
+    "iOS Engineer": ["iOS", "Swift", "Mobile"],
+  };
+
   const buildProfile = useMemo((): CofounderRequest => {
     const skills = new Set<string>(["Product Strategy", "Go-To-Market"]);
     const p = prompt.toLowerCase();
@@ -55,6 +69,9 @@ export function PromptPage() {
     if (p.includes("education") || p.includes("edtech")) { skills.add("Education"); skills.add("Curriculum Design"); }
     if (p.includes("saas") || p.includes("platform")) { skills.add("SaaS"); skills.add("Platform Engineering"); }
     if (p.includes("mobile")) { skills.add("Mobile"); skills.add("UX"); }
+    desiredRoles.forEach((role) => {
+      (ROLE_SKILL_MAP[role] || []).forEach((s) => skills.add(s));
+    });
     const experienceLevel = isVerified ? "Senior" : "Mid-Level";
     return {
       name: "Prospective Founder",
@@ -63,7 +80,7 @@ export function PromptPage() {
       personality: isVerified ? "Trusted, execution-focused" : "Curious, collaborative",
       experienceLevel,
     };
-  }, [prompt, isVerified]);
+  }, [prompt, isVerified, desiredRoles]);
 
   const handleFindCofounders = async () => {
     if (!prompt.trim()) return;
@@ -117,6 +134,45 @@ export function PromptPage() {
                 className="min-h-[180px] resize-none text-lg bg-white/50 border-slate-200 focus:border-indigo-400 focus:ring-indigo-400/20 rounded-xl"
               />
               <p className="text-slate-500">Be as specific or creative as you'd like</p>
+            </div>
+
+            {/* Desired Cofounder Roles */}
+            <div className="flex items-start justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-pink-100">
+              <div className="flex-1 min-w-0">
+                <Label className="cursor-pointer text-slate-900">Looking for cofounders</Label>
+                <p className="text-slate-600 text-sm">Pick one or more roles you want to find</p>
+                {desiredRoles.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {desiredRoles.map((role) => (
+                      <Badge key={role} variant="outline" className="bg-white/60">{role}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="gap-2 border-slate-300">
+                    Select Roles
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  {["CMO","CTO","Tech Lead","Designer","Sales Lead","COO","Data Scientist","iOS Engineer"].map((role) => (
+                    <DropdownMenuCheckboxItem
+                      key={role}
+                      checked={desiredRoles.includes(role)}
+                      onCheckedChange={(v) => {
+                        setDesiredRoles((prev) => {
+                          if (v) return Array.from(new Set([...prev, role]));
+                          return prev.filter((r) => r !== role);
+                        });
+                      }}
+                    >
+                      {role}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100">

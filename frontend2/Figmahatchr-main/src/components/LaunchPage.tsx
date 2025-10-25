@@ -39,7 +39,7 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-function buildDemoProfile(projectName: string, prompt: string, isVerified: boolean): CofounderRequest {
+function buildDemoProfile(projectName: string, prompt: string, isVerified: boolean, desiredRoles: string[]): CofounderRequest {
   const skills = new Set<string>(["Product Strategy", "Go-To-Market"]);
   const lowerPrompt = prompt.toLowerCase();
 
@@ -71,6 +71,19 @@ function buildDemoProfile(projectName: string, prompt: string, isVerified: boole
     skills.add("Mobile");
     skills.add("UX");
   }
+  const ROLE_SKILL_MAP: Record<string, string[]> = {
+    CMO: ["Marketing", "Growth", "SEO", "Brand", "Content"],
+    CTO: ["Full-Stack", "DevOps", "Cloud Architecture", "Node.js"],
+    "Tech Lead": ["Engineering Leadership", "Architecture", "TypeScript"],
+    Designer: ["Design", "Figma", "UX", "UI/UX"],
+    "Sales Lead": ["Sales", "BD", "Partnerships"],
+    COO: ["Operations", "Finance", "Analytics"],
+    "Data Scientist": ["ML", "Data Science", "Python"],
+    "iOS Engineer": ["iOS", "Swift", "Mobile"],
+  };
+  desiredRoles.forEach((role) => {
+    (ROLE_SKILL_MAP[role] || []).forEach((s) => skills.add(s));
+  });
 
   if (skills.size === 0) {
     skills.add("Product");
@@ -97,12 +110,20 @@ export function LaunchPage() {
   const projectName = sessionStorage.getItem("projectName") || "Your Startup";
   const prompt = sessionStorage.getItem("startupPrompt") || "";
   const isVerified = sessionStorage.getItem("isVerified") === "true";
+  const desiredRoles: string[] = (() => {
+    try {
+      const raw = sessionStorage.getItem("desiredRoles");
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  })();
   const [copied, setCopied] = useState(false);
   const [matches, setMatches] = useState<CofounderMatch[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
   const [matchError, setMatchError] = useState<string | null>(null);
 
-  const founderProfile = useMemo(() => buildDemoProfile(projectName, prompt, isVerified), [projectName, prompt, isVerified]);
+  const founderProfile = useMemo(() => buildDemoProfile(projectName, prompt, isVerified, desiredRoles), [projectName, prompt, isVerified, desiredRoles]);
 
   useEffect(() => {
     let cancelled = false;
