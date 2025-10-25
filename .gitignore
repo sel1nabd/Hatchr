@@ -26,7 +26,6 @@ frontend2/Figmahatchr-main/.env
 .idea/
 *.swp
 *.swo
-*~
 .DS_Store
 
 # Logs
