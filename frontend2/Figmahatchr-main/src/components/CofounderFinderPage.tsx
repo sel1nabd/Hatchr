@@ -164,7 +164,6 @@ export function CofounderFinderPage() {
                 <Button onClick={handleFind} disabled={loading} className="gap-2">
                   {loading ? "Finding…" : <>Find Matches <ArrowRight className="w-4 h-4" /></>}
                 </Button>
-                <Button variant="outline" onClick={() => navigate("/cofounder/profile")}>Create Profile</Button>
               </div>
 
               {(loading || matches || error) && (
@@ -226,7 +225,7 @@ export function CofounderFinderPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Simplified detailed form saved to localStorage */}
-              <DetailedProfileForm onSaved={() => navigate("/cofounder/explore")} />
+              <DetailedProfileForm />
             </CardContent>
           </Card>
         )}
@@ -241,7 +240,7 @@ export function CofounderFinderPage() {
   );
 }
 
-function DetailedProfileForm({ onSaved }: { onSaved: () => void }) {
+function DetailedProfileForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [bio, setBio] = useState("");
@@ -251,6 +250,7 @@ function DetailedProfileForm({ onSaved }: { onSaved: () => void }) {
   const [availability, setAvailability] = useState("");
   const [workStyle, setWorkStyle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const handleSave = () => {
     setSaving(true);
@@ -270,7 +270,7 @@ function DetailedProfileForm({ onSaved }: { onSaved: () => void }) {
     arr.push(profile);
     localStorage.setItem("cofounderProfiles", JSON.stringify(arr));
     setSaving(false);
-    onSaved();
+    setSavedMsg("Profile saved locally. Use 'Find Matches' in Quick Match to get recommendations.");
   };
 
   return (
@@ -284,6 +284,9 @@ function DetailedProfileForm({ onSaved }: { onSaved: () => void }) {
       <input className="px-3 py-2 border border-slate-200 rounded-lg" placeholder="Availability (comma-separated)" value={availability} onChange={(e) => setAvailability(e.target.value)} />
       <input className="px-3 py-2 border border-slate-200 rounded-lg" placeholder="Work Style (comma-separated)" value={workStyle} onChange={(e) => setWorkStyle(e.target.value)} />
       <Button onClick={handleSave} disabled={saving} className="w-full">{saving ? "Saving…" : "Save Profile"}</Button>
+      {savedMsg && (
+        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2">{savedMsg}</div>
+      )}
     </div>
   );
 }
