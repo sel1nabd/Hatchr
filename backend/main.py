@@ -223,6 +223,7 @@ class LivepeerService:
                     "status": "generated"
                 }
             else:
+                print(f"❌ Logo generation returned success=False: {result}")
                 return {
                     "success": False,
                     "logo_url": None,
@@ -231,7 +232,7 @@ class LivepeerService:
                 }
 
         except Exception as e:
-            print(f"❌ Logo generation error: {e}")
+            print(f"❌ Logo generation exception: {e}")
             return {
                 "success": False,
                 "logo_url": None,
@@ -287,6 +288,7 @@ class LivepeerService:
                     slides.append(slide_data)
                 
                 return {
+                    "success": True,
                     "deck_url": slides[0]["image_url"] if slides else None,  # First slide as preview
                     "slides": slides,
                     "total_slides": len(slides),
@@ -294,7 +296,9 @@ class LivepeerService:
                 }
             else:
                 # Return placeholder on failure
+                print(f"❌ Pitch deck generation failed: {result}")
                 return {
+                    "success": False,
                     "deck_url": f"https://livepeer.placeholder/decks/{uuid.uuid4()}",
                     "slides": [],
                     "total_slides": 0,
@@ -304,7 +308,9 @@ class LivepeerService:
                 
         except Exception as e:
             # Fallback to placeholder on exception
+            print(f"❌ Pitch deck generation exception: {e}")
             return {
+                "success": False,
                 "deck_url": f"https://livepeer.placeholder/decks/{uuid.uuid4()}",
                 "slides": [],
                 "total_slides": 0,
@@ -883,6 +889,7 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
 
         # Generate logo using enriched prompt
         logo = await LivepeerService.generate_startup_logo(enriched_spec)
+        print(f"🎨 Logo generation result: {logo}")
         if logo.get("success"):
             add_log(job_id, f"✅ Logo generated: {logo.get('logo_url', 'N/A')[:50]}...", "success")
         else:
@@ -890,6 +897,11 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
 
         # Generate pitch deck using enriched prompt
         deck = await LivepeerService.generate_pitch_deck(enriched_spec)
+        print(f"📊 Pitch deck generation result: {deck}")
+        if deck.get("slides"):
+            print(f"📊 Pitch deck has {len(deck['slides'])} slides")
+            for slide in deck.get('slides', []):
+                print(f"  - Slide {slide.get('slide_number')}: {slide.get('image_url', 'NO URL')[:60]}")
 
         update_step_status(job_id, 2, "completed")
         update_progress(job_id, 85)
@@ -937,6 +949,10 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         jobs_db[job_id]['logo'] = logo
         jobs_db[job_id]['pitch_deck'] = deck
         jobs_db[job_id]['live_url'] = live_url
+        
+        print(f"💾 Stored in jobs_db[{job_id}]:")
+        print(f"   - logo: {jobs_db[job_id].get('logo', {}).get('logo_url', 'NO URL')[:60] if jobs_db[job_id].get('logo') else 'NONE'}")
+        print(f"   - pitch_deck slides: {len(jobs_db[job_id].get('pitch_deck', {}).get('slides', [])) if jobs_db[job_id].get('pitch_deck') else 0}")
 
         add_log(job_id, f"🎉 Backend deployed! Live at: {live_url}", "success")
         add_log(job_id, f"📚 API docs available at: {live_url}/docs", "info")

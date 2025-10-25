@@ -141,6 +141,9 @@ export function LaunchPage() {
     const fetchProject = async () => {
       try {
         const data = await api.getProject(projectId);
+        console.log("📦 LaunchPage: Project data received:", data);
+        console.log("🎨 Logo data:", data.marketing_assets?.logo);
+        console.log("📊 Pitch deck data:", data.marketing_assets?.pitch_deck);
         setProjectData(data);
         setProject(data); // Keep both for compatibility
         sessionStorage.setItem("projectName", data.project_name);

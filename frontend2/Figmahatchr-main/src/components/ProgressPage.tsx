@@ -86,9 +86,11 @@ export function ProgressPage() {
 
         // Store marketing assets if available
         if (status.logo) {
+          console.log("🎨 ProgressPage: Logo received:", status.logo);
           setLogo(status.logo);
         }
         if (status.pitch_deck) {
+          console.log("📊 ProgressPage: Pitch deck received:", status.pitch_deck);
           setPitchDeck(status.pitch_deck);
         }
         if (status.live_url) {
