@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Sparkles, Code, Database, ArrowRight, Users, Megaphone, RefreshCw, Rocket, Copy, CheckCircle2, ExternalLink } from "lucide-react";
+import { Sparkles, Code, Database, ArrowRight, Users, Megaphone, RefreshCw, Rocket, Copy, CheckCircle2, ExternalLink, AlertTriangle } from "lucide-react";
 import { api } from "../api";
 import type { CofounderMatch, CofounderRequest, ProjectResponse } from "../types";
 
@@ -171,6 +171,21 @@ export function LaunchPage() {
       cancelled = true;
     };
   }, [founderProfile, projectId]);
+
+  if (!projectId) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6">
+        <Card className="max-w-md w-full p-6 text-center">
+          <div className="flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h2 className="text-slate-900 font-semibold mb-2">No project to show</h2>
+          <p className="text-slate-600 mb-4">Generate a startup first so we can show the launch details.</p>
+          <Button onClick={() => navigate("/")}>Back to Startup Generator</Button>
+        </Card>
+      </div>
+    );
+  }
 
   const handleReRun = () => {
     navigate("/");

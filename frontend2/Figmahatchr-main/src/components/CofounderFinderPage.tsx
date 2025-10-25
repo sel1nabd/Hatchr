@@ -165,7 +165,6 @@ export function CofounderFinderPage() {
                   {loading ? "Finding…" : <>Find Matches <ArrowRight className="w-4 h-4" /></>}
                 </Button>
                 <Button variant="outline" onClick={() => navigate("/cofounder/profile")}>Create Profile</Button>
-                <Button variant="outline" onClick={() => navigate("/cofounder/explore")}>Explore</Button>
               </div>
 
               {(loading || matches || error) && (
@@ -290,4 +289,3 @@ function DetailedProfileForm({ onSaved }: { onSaved: () => void }) {
 }
 
 export default CofounderFinderPage;
-

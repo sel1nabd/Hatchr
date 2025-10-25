@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
-import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package } from "lucide-react";
+import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package, AlertCircle } from "lucide-react";
 import { api } from "../api";
 
 type Step = {
@@ -88,6 +88,21 @@ export function ProgressPage() {
 
     return () => clearInterval(interval);
   }, [jobIdFromUrl]);
+
+  if (!jobIdFromUrl) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6">
+        <Card className="max-w-md w-full p-6 text-center">
+          <div className="flex items-center justify-center mb-3">
+            <AlertCircle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h2 className="text-slate-900 font-semibold mb-2">No generation in progress</h2>
+          <p className="text-slate-600 mb-4">Start from the Startup Generator to begin a new build.</p>
+          <Button onClick={() => navigate("/")}>Back to Startup Generator</Button>
+        </Card>
+      </div>
+    );
+  }
 
   const generateProjectName = (prompt: string): string => {
     // Simple logic to generate a name from the prompt

@@ -9,7 +9,7 @@ export default function HeaderNav() {
   const navigate = useNavigate();
 
   return (
-    <header className="bg-white border-b border-slate-200">
+    <header className="fixed top-0 inset-x-0 z-50 bg-white border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <button className="flex items-center gap-2" onClick={() => navigate("/")}> 
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow">
@@ -29,7 +29,7 @@ export default function HeaderNav() {
             }
           >
             <Rocket className="w-4 h-4" />
-            <span>Generator</span>
+            <span>Startup Generator</span>
           </NavLink>
           <NavLink
             to="/cofounder"
@@ -44,18 +44,6 @@ export default function HeaderNav() {
             <span>Finder</span>
           </NavLink>
           <NavLink
-            to="/cofounder/explore"
-            className={({ isActive }) =>
-              cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
-                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
-              )
-            }
-          >
-            <Search className="w-4 h-4" />
-            <span>Explore</span>
-          </NavLink>
-          <NavLink
             to="/cofounder/profile"
             className={({ isActive }) =>
               cls(
@@ -66,18 +54,6 @@ export default function HeaderNav() {
           >
             <UserPlus className="w-4 h-4" />
             <span>Profile</span>
-          </NavLink>
-          <NavLink
-            to="/figma"
-            className={({ isActive }) =>
-              cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
-                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
-              )
-            }
-          >
-            <LayoutGrid className="w-4 h-4" />
-            <span>Figma</span>
           </NavLink>
         </nav>
       </div>
