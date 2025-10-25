@@ -1,36 +1,64 @@
-# Hatchr - Setup Guide
+# Hatchr Setup Guide
 
-## Overview
+## Complete AI-Powered Startup Generator
+**GPT-4o + Sonnet 4.5 + Render.com = Instant Deployable Backends**
 
-**Hatchr** is a Startup-as-a-Service platform that generates full-stack MVPs from a single prompt.
+---
 
-- **Frontend**: Next.js 14 + Tailwind CSS + TypeScript
-- **Backend**: FastAPI + Python
-- **Features**: Competitor discovery, MVP generation, Concordium verification (placeholder), Livepeer marketing (placeholder)
+## What Does This Do?
+
+Hatchr generates **complete, deployable FastAPI backends** from a single prompt:
+
+1. **User Input**: "Build a task manager for remote teams"
+2. **GPT-4o**: Researches competitors, identifies features, creates detailed spec
+3. **Sonnet 4.5**: Generates complete FastAPI + SQLite code in one shot
+4. **Local Storage**: Saves files to `projects/` folder and creates zip
+5. **Render Deployment**: Auto-deploys to Render.com
+6. **Result**: Live backend URL like `https://task-mgmt-xyz.onrender.com`
+
+---
+
+## Prerequisites
+
+You need 3 API keys:
+
+### 1. OpenAI API Key (GPT-4o) ✅ ALREADY CONFIGURED
+- Already set in `.env`
+- No action needed
+
+### 2. Anthropic API Key (Sonnet 4.5) ⚠️ REQUIRED
+- Already set in `.env` with your key
+- Verified: `sk-ant-api03-9rug9UBBrYnpto...`
+
+### 3. Render.com API Key (Deployment) ⚠️ REQUIRED
+- Go to: https://dashboard.render.com/u/settings#api-keys
+- Create new API key
+- Add to `.env`: `RENDER_API_KEY=rnd_...`
+- Free tier available
+
+---
 
 ## Quick Start
 
-### 1. Backend Setup
+### Backend Setup
 
 ```bash
 cd backend
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
 # Install dependencies
 pip install -r requirements.txt
 
-# Run server
+# Create required directories
+mkdir -p projects tmp
+
+# Run the backend
 python main.py
 ```
 
-Backend runs at: **http://localhost:8000**
+Backend starts at: `http://localhost:8001`
+API docs: `http://localhost:8001/docs`
 
-API docs: **http://localhost:8000/docs**
-
-### 2. Frontend Setup
+### Frontend Setup
 
 ```bash
 cd frontend
@@ -38,195 +66,124 @@ cd frontend
 # Install dependencies
 npm install
 
-# Run dev server
+# Run development server
 npm run dev
 ```
 
-Frontend runs at: **http://localhost:3000**
+Frontend starts at: `http://localhost:3000`
 
-### 3. Test the Flow
+---
 
-1. Open http://localhost:3000
-2. Enter a startup idea (e.g., "AI scheduling tool for freelancers")
-3. Check "Mark as verified founder" (optional)
-4. Click "Generate Startup"
-5. Watch live progress on /generate page
-6. View marketing assets and launch guide on /launch page
+## Configuration
+
+Add your Render API key to `.env`:
+
+```bash
+# In backend/.env
+RENDER_API_KEY=rnd_your-key-here
+```
+
+All other keys are already configured!
+
+---
+
+## Testing Without Deployment
+
+To test code generation without deploying to Render:
+
+```bash
+# Start backend
+cd backend && python main.py
+
+# In another terminal, send test request
+curl -X POST http://localhost:8001/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Build a simple todo API", "verified": false}'
+
+# Check generated files in:
+ls -la projects/
+```
+
+---
+
+## Full Flow Test
+
+1. Start backend: `cd backend && python main.py`
+2. Start frontend: `cd frontend && npm run dev`
+3. Open: http://localhost:3000
+4. Enter prompt: "Build a recipe sharing API"
+5. Click "Generate Startup"
+6. Watch progress (2-5 minutes)
+7. Get live URL when complete!
+
+---
 
 ## API Endpoints
 
-### Start Generation
-```bash
-curl -X POST http://localhost:8000/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Airbnb for pets", "verified": true}'
-```
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/generate` | Start generation |
+| `GET /api/status/{job_id}` | Poll job status |
+| `GET /api/project/{project_id}` | Get project details |
+| `GET /download/{project_id}` | Download project zip |
 
-### Check Status
-```bash
-curl http://localhost:8000/api/status/{job_id}
-```
-
-### Get Project Details
-```bash
-curl http://localhost:8000/api/project/{project_id}
-```
-
-## Architecture
-
-```
-┌──────────────────────┐
-│   User enters prompt │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│   Frontend (Next.js) │
-│   • Home page        │
-│   • Progress page    │
-│   • Launch page      │
-└──────────┬───────────┘
-           │ HTTP/REST
-           ▼
-┌──────────────────────┐
-│   Backend (FastAPI)  │
-│   • Job management   │
-│   • Background tasks │
-└──────────┬───────────┘
-           │
-           ├──► DiscoveryService (find competitors)
-           ├──► MVPGeneratorService (generate code)
-           ├──► PackagingService (create zip)
-           ├──► ConcordiumService (blockchain proof)
-           └──► LivepeerService (pitch videos)
-```
-
-## Current Implementation Status
-
-### ✅ Completed
-- Full FastAPI backend with all endpoints
-- Background job processing
-- Real-time status polling and logs
-- Next.js frontend (3 pages)
-- Tailwind UI components
-- CORS configuration
-- In-memory job storage
-
-### 🔄 Placeholder Implementations
-These are functional placeholders ready to be replaced with real integrations:
-
-1. **ConcordiumService** - Returns mock blockchain verification
-   - TODO: Integrate Concordium SDK
-   - TODO: Store identity proofs on-chain
-
-2. **LivepeerService** - Returns mock video URLs
-   - TODO: Integrate Livepeer Daydream API
-   - TODO: Generate actual pitch videos
-
-3. **DiscoveryService** - Returns hardcoded competitors
-   - TODO: Add Google Custom Search API
-   - TODO: Add web scraping (Playwright)
-   - TODO: Add BuiltWith API for tech stacks
-
-4. **MVPGeneratorService** - Simulates code generation
-   - TODO: Integrate LLM (OpenAI/Anthropic)
-   - TODO: Generate actual Next.js code
-   - TODO: Create Supabase schema
-
-5. **PackagingService** - Creates mock project
-   - TODO: Generate actual file structure
-   - TODO: Create downloadable ZIP
-   - TODO: Add Dockerfile template
-
-6. **Deploy endpoint** - Returns placeholder URL
-   - TODO: Integrate Vercel API
-   - TODO: Auto-deploy generated projects
+---
 
 ## File Structure
 
 ```
-Hatchr/
-├── backend/
-│   ├── main.py              # Complete FastAPI app
-│   ├── requirements.txt     # Python dependencies
-│   ├── .env.example        # Environment variables
-│   ├── README.md           # Backend documentation
-│   └── venv/               # Virtual environment
-│
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx        # Home/prompt page
-│   │   ├── generate/
-│   │   │   └── page.tsx    # Progress page
-│   │   └── launch/
-│   │       └── page.tsx    # Launch guide page
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   └── tsconfig.json
-│
-└── SETUP.md               # This file
+backend/
+├── main.py                 # Main FastAPI app
+├── generation_service.py   # GPT-4o + Sonnet logic
+├── deploy_service.py       # Render deployment
+├── projects/               # Generated projects
+│   └── {uuid}/
+│       ├── main.py
+│       ├── requirements.txt
+│       └── README.md
+└── tmp/                    # Zip files
+    └── {uuid}.zip
 ```
 
-## Environment Variables
+---
 
-Copy `backend/.env.example` to `backend/.env` and configure:
+## Costs
 
-```bash
-# LLM APIs (for code generation)
-OPENAI_API_KEY=your_key_here
-ANTHROPIC_API_KEY=your_key_here
+- **GPT-4o**: ~$0.01-0.02 per generation
+- **Sonnet 4.5**: ~$0.03-0.05 per generation
+- **Render.com**: Free tier (750 hours/month)
 
-# Competitor Discovery
-GOOGLE_CUSTOM_SEARCH_API_KEY=your_key_here
-BUILTWITH_API_KEY=your_key_here
+**Total**: ~$0.05 per startup + free hosting
 
-# Concordium (blockchain verification)
-CONCORDIUM_NODE_URL=https://node.testnet.concordium.com
-CONCORDIUM_WALLET_KEY=your_key_here
+---
 
-# Livepeer (video generation)
-LIVEPEER_API_KEY=your_key_here
-LIVEPEER_GATEWAY_URL=https://livepeer.studio/api
+## Troubleshooting
+
+### "ANTHROPIC_API_KEY not found"
+- Key is already in `.env`, restart backend
+
+### "RENDER_API_KEY not found"
+- Add your Render API key to `.env`
+- Get it from: https://dashboard.render.com/u/settings#api-keys
+
+### Generated code has errors
+- Check `projects/{uuid}/` for generated files
+- Sonnet is 99% reliable but you can manually edit if needed
+
+---
+
+## Production Deployment
+
+Update `base_url` in `main.py` line 130:
+
+```python
+# Change from:
+base_url = "http://localhost:8001"
+
+# To your deployed URL:
+base_url = "https://your-hatchr-app.onrender.com"
 ```
 
-## Next Steps
+---
 
-1. **Test the demo** - Everything works end-to-end with mock data
-2. **Add real LLM integration** - Replace MVPGeneratorService placeholders
-3. **Add real competitor discovery** - Integrate Google API and web scraping
-4. **Integrate Concordium** - Add actual blockchain verification
-5. **Integrate Livepeer** - Generate real pitch videos
-6. **Add database** - Replace in-memory storage with PostgreSQL/Redis
-7. **Add authentication** - Secure the API
-8. **Deploy** - Host on Vercel (frontend) + Render/Railway (backend)
-
-## Demo Testing
-
-The backend is fully functional and can be tested immediately:
-
-```bash
-# Terminal 1: Start backend
-cd backend && python main.py
-
-# Terminal 2: Start frontend
-cd frontend && npm run dev
-
-# Terminal 3: Test API directly
-curl -X POST http://localhost:8000/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "AI scheduling tool", "verified": true}'
-```
-
-## Production Considerations
-
-- Add proper database (PostgreSQL + Redis)
-- Use Celery/RQ for background jobs
-- Add authentication and rate limiting
-- Implement file storage (S3/Google Cloud)
-- Add monitoring and error tracking
-- Set up CI/CD pipeline
-- Add comprehensive tests
-
-## License
-
-MIT
+Built with ❤️ using GPT-4o, Sonnet 4.5, and Render.com

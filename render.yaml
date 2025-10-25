@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: hatchr-backend
+    runtime: python
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: CONCORDIUM_NODE_URL
+        value: https://node.testnet.concordium.com
+      - key: LIVEPEER_API_KEY
+        sync: false

@@ -5,6 +5,8 @@ import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package } from "lucide-react";
+import { api } from "../api";
+import type { StatusResponse } from "../types";
 
 type Step = {
   id: number;
@@ -17,67 +19,101 @@ type Step = {
 export function ProgressPage() {
   const navigate = useNavigate();
   const [steps, setSteps] = useState<Step[]>([
-    { 
-      id: 1, 
-      label: "Finding competitors", 
-      description: "Analyzing market and discovering opportunities",
-      icon: <Search className="w-5 h-5" />,
-      status: "pending" 
-    },
-    { 
-      id: 2, 
-      label: "Building MVP", 
-      description: "Generating your product architecture",
+    {
+      id: 0,
+      label: "Generating backend code",
+      description: "Creating FastAPI + SQLite code with GPT-4o + Sonnet 4.5",
       icon: <Code2 className="w-5 h-5" />,
-      status: "pending" 
+      status: "pending"
     },
-    { 
-      id: 3, 
-      label: "Packaging startup", 
-      description: "Creating launch materials and resources",
+    {
+      id: 1,
+      label: "Deploying to Render",
+      description: "Deploying your backend to Render.com",
+      icon: <Sparkles className="w-5 h-5" />,
+      status: "pending"
+    },
+    {
+      id: 2,
+      label: "Generating marketing assets",
+      description: "Creating video and pitch deck with Livepeer",
+      icon: <Search className="w-5 h-5" />,
+      status: "pending"
+    },
+    {
+      id: 3,
+      label: "Creating founder identity",
+      description: "Verifying identity on Concordium blockchain",
+      icon: <CheckCircle2 className="w-5 h-5" />,
+      status: "pending"
+    },
+    {
+      id: 4,
+      label: "Finalizing startup",
+      description: "Packaging everything together",
       icon: <Package className="w-5 h-5" />,
-      status: "pending" 
+      status: "pending"
     },
   ]);
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const isVerified = sessionStorage.getItem("isVerified") === "true";
 
   useEffect(() => {
-    // Get the prompt to generate a project name
+    const jobId = sessionStorage.getItem("jobId");
     const prompt = sessionStorage.getItem("startupPrompt") || "";
-    const name = generateProjectName(prompt);
-    setProjectName(name);
-    sessionStorage.setItem("projectName", name);
 
-    // Simulate the generation process
-    const timings = [2000, 4000, 6000]; // Time for each step
-    let currentProgress = 0;
+    if (!jobId) {
+      setError("No job ID found. Please start generation again.");
+      return;
+    }
 
-    timings.forEach((timing, index) => {
-      setTimeout(() => {
-        setSteps((prev) =>
-          prev.map((step, i) => {
-            if (i === index) return { ...step, status: "processing" };
-            if (i < index) return { ...step, status: "complete" };
+    // Poll backend for status
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await api.getStatus(jobId);
+
+        setProgress(status.progress);
+        setProjectName(status.project_name || "Your Startup");
+
+        // Update steps based on backend response
+        setSteps(prevSteps =>
+          prevSteps.map(step => {
+            const backendStep = status.steps.find(s => s.id === step.id);
+            if (backendStep) {
+              return {
+                ...step,
+                status: backendStep.status === "in_progress" ? "processing" :
+                        backendStep.status === "completed" ? "complete" : "pending"
+              };
+            }
             return step;
           })
         );
-        currentProgress = ((index + 1) / 3) * 100;
-        setProgress(currentProgress);
 
-        if (index === timings.length - 1) {
-          setTimeout(() => {
-            setSteps((prev) =>
-              prev.map((step) => ({ ...step, status: "complete" }))
-            );
-            setProgress(100);
-            setIsComplete(true);
-          }, 1500);
+        // Check if complete
+        if (status.status === "completed" && status.project_id) {
+          setProjectId(status.project_id);
+          setProjectName(status.project_name || "Your Startup");
+          sessionStorage.setItem("projectId", status.project_id);
+          sessionStorage.setItem("projectName", status.project_name || "Your Startup");
+          setIsComplete(true);
+          clearInterval(pollInterval);
+        } else if (status.status === "failed") {
+          setError("Generation failed. Please try again.");
+          clearInterval(pollInterval);
         }
-      }, timing);
-    });
+      } catch (err) {
+        console.error("Failed to poll status:", err);
+        setError("Failed to check status. Please refresh.");
+        clearInterval(pollInterval);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    return () => clearInterval(pollInterval);
   }, []);
 
   const generateProjectName = (prompt: string): string => {

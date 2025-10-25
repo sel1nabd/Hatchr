@@ -48,9 +48,26 @@ export interface LaunchChannel {
 export interface ProjectResponse {
   project_id: string;
   project_name: string;
-  tagline: string;
-  stack: string[];
-  verified: boolean;
-  marketing_assets: MarketingAssets;
-  launch_channels: LaunchChannel[];
+  description: string;
+  live_url: string;
+  api_docs_url: string;
+  download_url: string;
+  tech_stack: string[];
+  created_at: string;
+}
+
+export interface CofounderRequest {
+  name: string;
+  skills: string[];
+  goals: string;
+  personality: string;
+  experienceLevel?: string;
+}
+
+export interface CofounderMatch {
+  name: string;
+  compatibility: number;
+  sharedSkills: string[];
+  summary: string;
+  experienceLevel?: string;
 }

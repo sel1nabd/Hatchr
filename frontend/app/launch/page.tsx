@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import type { ProjectResponse, LaunchChannel } from "@/lib/types";
@@ -13,6 +13,8 @@ export default function Launch() {
   const [project, setProject] = useState<ProjectResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matches, setMatches] = useState<Array<{ name: string; compatibility: number; reason: string; skills?: string[]; experienceLevel?: string }>>([]);
+  const [loadingMatches, setLoadingMatches] = useState<boolean>(false);
 
   // Fetch project data from backend
   useEffect(() => {
@@ -36,6 +38,70 @@ export default function Launch() {
 
     fetchProject();
   }, [projectId]);
+
+  // Build a lightweight founder profile from stored prompt + roles and fetch matches
+  useEffect(() => {
+    async function fetchMatches() {
+      try {
+        const promptText = localStorage.getItem("startupPrompt") || "";
+        const verified = localStorage.getItem("isVerified") === "true";
+        let desiredRoles: string[] = [];
+        try {
+          desiredRoles = JSON.parse(localStorage.getItem("desiredRoles") || "[]");
+        } catch {}
+
+        const lower = promptText.toLowerCase();
+        const skills = new Set<string>(["Product", "Go-To-Market"]);
+        if (lower.includes("ai") || lower.includes("machine")) { skills.add("AI"); skills.add("ML"); }
+        if (lower.includes("health") || lower.includes("med")) { skills.add("Healthcare"); skills.add("Compliance"); }
+        if (lower.includes("fintech") || lower.includes("finance") || lower.includes("payments")) { skills.add("Fintech"); skills.add("Risk"); }
+        if (lower.includes("web3") || lower.includes("blockchain")) { skills.add("Blockchain"); skills.add("Smart Contracts"); }
+        if (lower.includes("education") || lower.includes("edtech")) { skills.add("Education"); skills.add("Curriculum Design"); }
+        if (lower.includes("saas") || lower.includes("platform")) { skills.add("SaaS"); skills.add("Platform Engineering"); }
+        if (lower.includes("mobile")) { skills.add("Mobile"); skills.add("UX"); }
+
+        const ROLE_SKILL_MAP: Record<string, string[]> = {
+          CMO: ["Marketing", "Growth", "SEO", "Brand", "Content"],
+          CTO: ["Full-Stack", "DevOps", "Cloud Architecture", "Node.js"],
+          "Tech Lead": ["Engineering Leadership", "Architecture", "TypeScript"],
+          Designer: ["Design", "Figma", "UX", "UI/UX"],
+          "Sales Lead": ["Sales", "BD", "Partnerships"],
+          COO: ["Operations", "Finance", "Analytics"],
+          "Data Scientist": ["ML", "Data Science", "Python"],
+          "iOS Engineer": ["iOS", "Swift", "Mobile"],
+        };
+        desiredRoles.forEach((r) => (ROLE_SKILL_MAP[r] || []).forEach((s) => skills.add(s)));
+
+        const body = {
+          name: "Prospective Founder",
+          skills: Array.from(skills).join(", "),
+          goals: promptText || (project?.project_name ? `Launch ${project.project_name}` : "Launch startup"),
+          personality: verified ? "Trusted, execution-focused" : "Curious, collaborative",
+          experienceLevel: verified ? "Senior" : "Mid-Level",
+        };
+
+        setLoadingMatches(true);
+        const res = await fetch("/api/findCofounder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("match request failed");
+        const data = await res.json();
+        setMatches(data.matches || []);
+      } catch (e) {
+        console.warn("cofounder match request failed", e);
+        setMatches([]);
+      } finally {
+        setLoadingMatches(false);
+      }
+    }
+
+    // Only trigger after project has loaded or when projectId exists
+    if (projectId) {
+      fetchMatches();
+    }
+  }, [projectId, project]);
 
   const handleRerun = () => {
     router.push("/");
@@ -262,6 +328,56 @@ export default function Launch() {
               >
                 {channel.priority}
               </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cofounder Suggestions */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold">Cofounder Suggestions</h3>
+          <span className="text-xs text-gray-500">Demo recommendations</span>
+        </div>
+        <div className="space-y-3">
+          {loadingMatches && (
+            <>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={`sk-${i}`} className="flex items-start gap-4 p-3 border border-gray-200 rounded-lg animate-pulse">
+                  <div className="w-10 h-10 rounded bg-gray-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-32 bg-gray-200 rounded" />
+                    <div className="h-3 w-48 bg-gray-200 rounded" />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+          {!loadingMatches && matches.length === 0 && (
+            <p className="text-sm text-gray-600">No suggestions yet. Try adjusting roles on the home prompt.</p>
+          )}
+          {!loadingMatches && matches.length > 0 && matches.map((m, idx) => (
+            <div key={`${m.name}-${idx}`} className="flex items-start gap-4 p-3 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+              <div className="w-10 h-10 rounded bg-gray-900 text-white flex items-center justify-center text-xs font-semibold">
+                {m.name.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">{m.name}</div>
+                    {m.experienceLevel && (<div className="text-xs text-gray-500">{m.experienceLevel}</div>)}
+                  </div>
+                  <span className="text-xs font-medium px-2 py-1 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">{m.compatibility}% match</span>
+                </div>
+                <div className="text-sm text-gray-700 mt-1">{m.reason}</div>
+                {m.skills && m.skills.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {m.skills.slice(0,4).map((s,i)=>(
+                      <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full border text-xs bg-white">{s}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
