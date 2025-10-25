@@ -126,7 +126,7 @@ class ConcordiumWalletService {
    */
   async requestIdentityProof(
     challenge: string,
-    statement: IdentityStatement[]
+    statement: any
   ): Promise<VerifiablePresentation> {
     console.log('[Concordium] 🎫 Starting identity proof request...');
     console.log('[Concordium] Challenge:', challenge);
@@ -145,9 +145,10 @@ class ConcordiumWalletService {
     try {
       console.log('[Concordium] 📤 Sending verifiable presentation request to wallet...');
       // Request verifiable presentation from wallet
+      // Pass statement as-is (already in correct format with idQualifier)
       const presentation = await this.provider.requestVerifiablePresentation(
         challenge,
-        statement as any // Cast to avoid type conflicts
+        statement
       );
 
       console.log('[Concordium] 📥 Received presentation response from wallet');
@@ -230,27 +231,34 @@ export const concordiumWallet = new ConcordiumWalletService();
  * Create identity statement for Hatchr signup
  * Requires: age 18+, valid country of residence
  */
-export function createHatchrIdentityStatement(): IdentityStatement[] {
+export function createHatchrIdentityStatement() {
   // Calculate date range for 18+ years old
   const currentYear = new Date().getFullYear();
   const eighteenYearsAgo = currentYear - 18;
 
-  return [
-    {
-      type: 'AttributeInRange',
-      attributeTag: 'dob', // Date of birth
-      upper: `${eighteenYearsAgo}1231`, // Must be born before 18 years ago
+  // Concordium requires a CredentialStatement with idQualifier and statement array
+  return {
+    idQualifier: {
+      type: 'cred' as const,
+      issuers: [0, 1, 2, 3, 4, 5, 6, 7], // All identity providers
     },
-    {
-      type: 'AttributeInSet',
-      attributeTag: 'countryOfResidence',
-      // List of valid countries (example - you can modify this)
-      set: [
-        'US', 'CA', 'GB', 'AU', 'NZ', 'SG', // English-speaking
-        'AT', 'BE', 'BG', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', // EU countries
-        'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT',
-        'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'HR',
-      ],
-    },
-  ];
+    statement: [
+      {
+        type: 'AttributeInRange' as const,
+        attributeTag: 'dob', // Date of birth
+        upper: `${eighteenYearsAgo}1231`, // Must be born before 18 years ago
+      },
+      {
+        type: 'AttributeInSet' as const,
+        attributeTag: 'countryOfResidence',
+        // List of valid countries (example - you can modify this)
+        set: [
+          'US', 'CA', 'GB', 'AU', 'NZ', 'SG', // English-speaking
+          'AT', 'BE', 'BG', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', // EU countries
+          'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT',
+          'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'HR',
+        ],
+      },
+    ],
+  };
 }
