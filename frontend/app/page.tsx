@@ -12,6 +12,9 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const [loadingMatches, setLoadingMatches] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [matches, setMatches] = useState<Array<{ name: string; compatibility: number; reason: string; skills?: string[]; experienceLevel?: string }>>([]);
 
   const ROLES = [
     "CMO",
@@ -58,6 +61,58 @@ export default function Home() {
       setIsGenerating(false);
     }
   };
+
+  async function handleFindCofoundersNow() {
+    if (!prompt.trim()) return;
+    setLoadingMatches(true);
+    setMatchError(null);
+    setMatches([]);
+    try {
+      const verifiedFlag = verified;
+      // Build a lightweight profile for the matcher
+      const lower = prompt.toLowerCase();
+      const skills = new Set<string>(["Product", "Go-To-Market"]);
+      if (lower.includes("ai") || lower.includes("machine")) { skills.add("AI"); skills.add("ML"); }
+      if (lower.includes("health") || lower.includes("med")) { skills.add("Healthcare"); skills.add("Compliance"); }
+      if (lower.includes("fintech") || lower.includes("finance") || lower.includes("payments")) { skills.add("Fintech"); skills.add("Risk"); }
+      if (lower.includes("web3") || lower.includes("blockchain")) { skills.add("Blockchain"); skills.add("Smart Contracts"); }
+      if (lower.includes("education") || lower.includes("edtech")) { skills.add("Education"); skills.add("Curriculum Design"); }
+      if (lower.includes("saas") || lower.includes("platform")) { skills.add("SaaS"); skills.add("Platform Engineering"); }
+      if (lower.includes("mobile")) { skills.add("Mobile"); skills.add("UX"); }
+
+      const ROLE_SKILL_MAP: Record<string, string[]> = {
+        CMO: ["Marketing", "Growth", "SEO", "Brand", "Content"],
+        CTO: ["Full-Stack", "DevOps", "Cloud Architecture", "Node.js"],
+        "Tech Lead": ["Engineering Leadership", "Architecture", "TypeScript"],
+        Designer: ["Design", "Figma", "UX", "UI/UX"],
+        "Sales Lead": ["Sales", "BD", "Partnerships"],
+        COO: ["Operations", "Finance", "Analytics"],
+        "Data Scientist": ["ML", "Data Science", "Python"],
+        "iOS Engineer": ["iOS", "Swift", "Mobile"],
+      };
+      selectedRoles.forEach((r) => (ROLE_SKILL_MAP[r] || []).forEach((s) => skills.add(s)));
+
+      const body = {
+        name: "Prospective Founder",
+        skills: Array.from(skills).join(", "),
+        goals: prompt,
+        personality: verifiedFlag ? "Trusted, execution-focused" : "Curious, collaborative",
+        experienceLevel: verifiedFlag ? "Senior" : "Mid-Level",
+      };
+      const res = await fetch("/api/findCofounder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("request failed");
+      const data = await res.json();
+      setMatches(data.matches || []);
+    } catch (e: any) {
+      setMatchError(e?.message || "Unable to fetch matches");
+    } finally {
+      setLoadingMatches(false);
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -171,14 +226,81 @@ export default function Home() {
           </div>
         )}
 
-        {/* Generate button */}
-        <button
-          onClick={handleGenerate}
-          disabled={!prompt.trim() || isGenerating}
-          className="w-full mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isGenerating ? "Generating..." : "Generate Startup"}
-        </button>
+        {/* Actions */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            onClick={handleGenerate}
+            disabled={!prompt.trim() || isGenerating}
+            className="w-full mt-6 px-6 py-3 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isGenerating ? "Generating..." : "Generate Startup"}
+          </button>
+          <button
+            onClick={handleFindCofoundersNow}
+            disabled={!prompt.trim() || isGenerating}
+            className="w-full mt-6 px-6 py-3 bg-white border border-gray-300 text-gray-900 rounded-lg font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Find Cofounders Now
+          </button>
+        </div>
+
+        {(loadingMatches || matches.length > 0 || matchError) && (
+          <div className="mt-6 bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Cofounder Suggestions</h3>
+              <span className="text-xs text-gray-500">Demo results</span>
+            </div>
+            <div className="space-y-2">
+              {loadingMatches && (
+                <>
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={`sk-${i}`} className="flex items-start gap-3 p-3 rounded border border-gray-200 animate-pulse">
+                      <div className="w-9 h-9 rounded bg-gray-200" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3 w-32 bg-gray-200 rounded" />
+                        <div className="h-3 w-48 bg-gray-200 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+              {!loadingMatches && matchError && (
+                <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">{matchError}</div>
+              )}
+              {!loadingMatches && !matchError && matches.length === 0 && (
+                <p className="text-sm text-gray-600">No suggestions yet. Try adjusting roles and prompt above.</p>
+              )}
+              {!loadingMatches && !matchError && matches.length > 0 && (
+                <div className="space-y-2">
+                  {matches.map((m, idx) => (
+                    <div key={`${m.name}-${idx}`} className="flex items-start gap-3 p-3 rounded border border-gray-200 hover:border-gray-300">
+                      <div className="w-9 h-9 rounded bg-gray-900 text-white flex items-center justify-center text-xs font-semibold">
+                        {m.name.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{m.name}</div>
+                            {m.experienceLevel && <div className="text-xs text-gray-500">{m.experienceLevel}</div>}
+                          </div>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">{m.compatibility}% match</span>
+                        </div>
+                        <div className="text-sm text-gray-700 mt-1">{m.reason}</div>
+                        {m.skills && m.skills.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {m.skills.slice(0, 4).map((s, i) => (
+                              <span key={`${s}-${i}`} className="px-2 py-0.5 rounded-full border text-xs bg-white">{s}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Info cards */}
         <div className="grid grid-cols-3 gap-4">
