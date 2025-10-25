@@ -9,7 +9,7 @@ export default function HeaderNav() {
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-white/30">
+    <header className="bg-white border-b border-slate-200">
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <button className="flex items-center gap-2" onClick={() => navigate("/")}> 
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow">
@@ -20,6 +20,7 @@ export default function HeaderNav() {
         <nav className="flex items-center gap-2">
           <NavLink
             to="/"
+            end
             className={({ isActive }) =>
               cls(
                 "px-3 py-1.5 rounded-md text-sm font-medium",
@@ -78,4 +79,3 @@ export default function HeaderNav() {
     </header>
   );
 }
-
