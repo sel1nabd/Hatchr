@@ -21,6 +21,7 @@ from datetime import datetime
 from generation_service import generate_startup_backend
 from deploy_service import RenderDeployer
 from pitch_deck_generator import generate_pitch_deck as generate_deck_slides
+from lpfuncs import generate_startup_branding
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -213,6 +214,73 @@ class LivepeerService:
                 "total_slides": 0,
                 "status": "failed",
                 "error": str(e)
+            }
+
+    @staticmethod
+    async def generate_startup_logo(
+        startup_idea: str,
+        startup_name: str = "",
+        style: str = "modern",
+        color_scheme: str = ""
+    ) -> Dict:
+        """
+        Generate a professional logo for a startup using Livepeer AI text-to-image.
+        
+        Args:
+            startup_idea: Description of the startup concept
+            startup_name: Name of the startup (optional, will be auto-generated if empty)
+            style: Visual style - "modern", "minimalist", "playful", "professional", "tech", "elegant"
+            color_scheme: Optional color preferences (e.g., "blue and white", "vibrant neon")
+            
+        Returns:
+            Dict containing:
+            - logo_url: URL to the generated logo image
+            - status: "generated" or "failed"
+            - error: Error message if failed
+            - metadata: Additional info (prompt used, dimensions, etc.)
+        """
+        
+        try:
+            # Generate logo using the branding function (logo only, no video)
+            result = generate_startup_branding(
+                startup_idea=startup_idea,
+                startup_name=startup_name,
+                style=style,
+                color_scheme=color_scheme,
+                logo_width=1024,
+                logo_height=1024,
+                include_video=False  # Only generate logo, skip video
+            )
+            
+            if result.get("success") and result.get("logo_url"):
+                return {
+                    "logo_url": result["logo_url"],
+                    "status": "generated",
+                    "metadata": {
+                        "startup_name": startup_name or "Auto-generated",
+                        "style": style,
+                        "color_scheme": color_scheme,
+                        "prompt": result.get("logo_prompt", ""),
+                        "width": 1024,
+                        "height": 1024
+                    }
+                }
+            else:
+                # Return placeholder on failure
+                return {
+                    "logo_url": f"https://livepeer.placeholder/logos/{uuid.uuid4()}",
+                    "status": "failed",
+                    "error": result.get("error", "Unknown error"),
+                    "metadata": {}
+                }
+                
+        except Exception as e:
+            # Fallback to placeholder on exception
+            return {
+                "logo_url": f"https://livepeer.placeholder/logos/{uuid.uuid4()}",
+                "status": "failed",
+                "error": str(e),
+                "metadata": {}
             }
 
 
@@ -418,6 +486,11 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             project_name
         )
         deck = await LivepeerService.generate_pitch_deck(analysis['information'][:500])
+        logo = await LivepeerService.generate_startup_logo(
+            startup_idea=analysis['information'][:300],
+            startup_name=project_name,
+            style="modern"
+        )
 
         update_step_status(job_id, 1, "completed")
         update_progress(job_id, 75)
@@ -440,7 +513,8 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             "analysis": analysis,
             "marketing_assets": {
                 "video": video,
-                "pitch_deck": deck
+                "pitch_deck": deck,
+                "logo": logo
             },
             "launch_channels": generate_launch_channels(),
             "created_at": datetime.utcnow().isoformat()
@@ -797,6 +871,11 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             project_name
         )
         deck = await LivepeerService.generate_pitch_deck(description[:500])
+        logo = await LivepeerService.generate_startup_logo(
+            startup_idea=description[:300],
+            startup_name=project_name,
+            style="modern"
+        )
 
         update_step_status(job_id, 2, "completed")
         update_progress(job_id, 85)
@@ -826,7 +905,8 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             "concordium_identity": concordium_identity,
             "marketing_assets": {
                 "video": video,
-                "pitch_deck": deck
+                "pitch_deck": deck,
+                "logo": logo
             },
             "deployment": deployment,
             "files": list(result['files'].keys()),
