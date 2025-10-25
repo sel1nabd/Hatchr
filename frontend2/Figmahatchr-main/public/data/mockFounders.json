@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Alex Chen",
+    "skills": ["React", "TypeScript", "Node.js", "AI"],
+    "goals": "Build AI tools for developers",
+    "personality": "pragmatic and fast",
+    "experienceLevel": "Senior"
+  },
+  {
+    "name": "Priya Desai",
+    "skills": ["ML", "Data Science", "Python"],
+    "goals": "Democratize healthcare AI",
+    "personality": "analytical and mission-driven",
+    "experienceLevel": "Senior"
+  },
+  {
+    "name": "Sofia Ivanova",
+    "skills": ["Growth", "Community", "Partnerships", "Content"],
+    "goals": "Connect founders with impact investors",
+    "personality": "empathetic connector",
+    "experienceLevel": "Mid-Level"
+  },
+  {
+    "name": "Noah Chen",
+    "skills": ["Full-Stack", "DevOps", "Cloud Architecture"],
+    "goals": "Scale SaaS platforms",
+    "personality": "pragmatic builder",
+    "experienceLevel": "Senior"
+  },
+  {
+    "name": "Leo Martinez",
+    "skills": ["Design", "Figma", "UX", "Brand"],
+    "goals": "Build delightful consumer products",
+    "personality": "visionary designer",
+    "experienceLevel": "Mid-Level"
+  }
+]

@@ -23,29 +23,24 @@ export function PromptPage() {
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    const idea = prompt.trim();
+    if (!idea) return;
 
     setIsGenerating(true);
     setGenerateError(null);
 
+    // Persist UI selections for downstream usage
+    sessionStorage.setItem("startupPrompt", idea);
+    sessionStorage.setItem("isVerified", String(isVerified));
+    sessionStorage.setItem("desiredRoles", JSON.stringify(desiredRoles));
     try {
-      // Call backend to start generation
-      const response = await api.generateStartup({
-        prompt: prompt.trim(),
-        verified: isVerified,
-      });
-
-      // Store job_id and other data in sessionStorage
-      sessionStorage.setItem("jobId", response.job_id);
-      sessionStorage.setItem("startupPrompt", prompt);
-      sessionStorage.setItem("isVerified", String(isVerified));
-      sessionStorage.setItem("desiredRoles", JSON.stringify(desiredRoles));
-
-      // Navigate to progress page
-      navigate("/generate");
-    } catch (error) {
-      console.error("Generation failed:", error);
-      setGenerateError(error instanceof Error ? error.message : "Failed to start generation");
+      const res = await api.generateStartup({ prompt: idea, verified: isVerified });
+      sessionStorage.setItem("currentJobId", res.job_id);
+      navigate(`/generate?jobId=${encodeURIComponent(res.job_id)}`);
+    } catch (e: any) {
+      console.error("Failed to start generation", e);
+      setGenerateError(e?.message || "Failed to start generation");
+    } finally {
       setIsGenerating(false);
     }
   };
@@ -214,7 +209,7 @@ export function PromptPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 onClick={handleGenerate}
                 disabled={!prompt.trim()}
@@ -234,16 +229,13 @@ export function PromptPage() {
                 <Users className="w-5 h-5 mr-2" />
                 Find Cofounders Now
               </Button>
-              <Button
-                onClick={() => navigate("/figma")}
-                variant="outline"
-                className="w-full border-slate-300 hover:border-indigo-300 hover:bg-white"
-                size="lg"
-              >
-                <FigmaIcon className="w-5 h-5 mr-2" />
-                View Figma UI
-              </Button>
             </div>
+
+            {genError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {genError}
+              </div>
+            )}
           </div>
 
           {/* Feature Pills */}
