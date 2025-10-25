@@ -172,7 +172,7 @@ export function PromptPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56">
-                  {["CMO","CTO","Tech Lead","Designer","Sales Lead","COO","Data Scientist","iOS Engineer"].map((role) => (
+                  {["CMO", "CTO", "Tech Lead", "Designer", "Sales Lead", "COO", "Data Scientist", "iOS Engineer"].map((role) => (
                     <DropdownMenuCheckboxItem
                       key={role}
                       checked={desiredRoles.includes(role)}
@@ -231,9 +231,9 @@ export function PromptPage() {
               </Button>
             </div>
 
-            {genError && (
+            {generateError && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {genError}
+                {generateError}
               </div>
             )}
           </div>
