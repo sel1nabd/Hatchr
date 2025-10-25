@@ -149,10 +149,10 @@ class ConcordiumWalletService {
     try {
       console.log('[Concordium] 📤 Sending verifiable presentation request to wallet...');
       // Request verifiable presentation from wallet
-      // Pass statement as-is (already in correct format with idQualifier)
+      // IMPORTANT: Must pass statement wrapped in an array!
       const presentation = await this.provider.requestVerifiablePresentation(
         challenge,
-        statement
+        [statement]  // Array of CredentialStatement objects
       );
 
       console.log('[Concordium] 📥 Received presentation response from wallet');
