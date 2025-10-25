@@ -54,7 +54,7 @@ def generate_image_from_text(
     with get_livepeer_client() as livepeer:
         try:
             res = livepeer.generate.text_to_image(request={
-                "model_id": "SG161222/RealVisXL_V4.0_Lightning",
+                "model_id": "black-forest-labs/FLUX.1-dev",
                 "loras": "",
                 "prompt": prompt,
                 "height": height,
@@ -106,8 +106,9 @@ def generate_video_from_image(
     safety_check: bool = True
 ) -> Dict[str, Any]:
     """
-    Generate a video from an input image using Livepeer AI.
-    Uses stabilityai/stable-video-diffusion-img2vid-xt model.
+    Generate video from an image URL using Livepeer's image-to-video API.
+    Uses stabilityai/stable-video-diffusion-img2vid-xt-1-1 model (Livepeer's warm model).
+    Downloads the image, saves it to a temporary file, and sends as file object.
     
     Args:
         image_path: Path to the input image file
@@ -135,7 +136,7 @@ def generate_video_from_image(
                         "file_name": os.path.basename(image_path),
                         "content": image_file,
                     },
-                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt",
+                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
                     "height": height,
                     "width": width,
                     "fps": fps,
@@ -239,7 +240,7 @@ def generate_video_from_image_url(
                         "file_name": temp_filename,
                         "content": image_file,
                     },
-                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt",
+                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
                     "height": height,
                     "width": width,
                     "fps": fps,
