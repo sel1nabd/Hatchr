@@ -18,10 +18,10 @@ def quick_logo_test():
     
     # Test with logo only (skip video)
     result = generate_startup_branding(
-        startup_idea="Blockchain-based decentralized marketplace for digital art and NFTs",
-        startup_name="ArtChain",
-        style="elegant",
-        color_scheme="gold and deep purple",
+        startup_idea="SaaS for automated product acquisition buying and immediate relisting for the reselling game",
+        startup_name="Flippify",
+        style="complex in the style of Stripe",
+        color_scheme="Pastel colour scheme mainly blue",
         include_video=False  # Skip video to test faster
     )
     

@@ -20,6 +20,7 @@ from datetime import datetime
 # Import our services
 from generation_service import generate_startup_backend
 from deploy_service import RenderDeployer
+from pitch_deck_generator import generate_pitch_deck as generate_deck_slides
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -152,14 +153,67 @@ class LivepeerService:
 
     @staticmethod
     async def generate_pitch_deck(project_summary: str) -> Dict:
-        """Generate visual pitch deck"""
-
-        # TODO: Implement Daydream pitch deck generation
-        return {
-            "deck_url": f"https://livepeer.placeholder/decks/{uuid.uuid4()}",
-            "slides": 5,
-            "status": "generated"
-        }
+        """Generate visual pitch deck using Livepeer AI"""
+        
+        try:
+            # Extract basic info from summary for better deck generation
+            startup_name = ""
+            if "Name:" in project_summary or "name:" in project_summary.lower():
+                # Try to extract name from summary
+                lines = project_summary.split('\n')
+                for line in lines:
+                    if 'name' in line.lower():
+                        startup_name = line.split(':')[-1].strip()
+                        break
+            
+            # Generate the pitch deck synchronously (lpfuncs uses sync API)
+            result = generate_deck_slides(
+                startup_idea=project_summary,
+                startup_name=startup_name,
+                style="professional minimalist"
+            )
+            
+            if result.get("success") and result.get("slides"):
+                # Format response for API
+                slides = []
+                for slide in result["slides"]:
+                    slide_data = {
+                        "slide_number": slide["slide_number"],
+                        "title": slide["title"],
+                        "image_url": slide["image_url"]
+                    }
+                    # Include refined image if available
+                    if "refined_image_path" in slide:
+                        slide_data["refined_image_path"] = slide["refined_image_path"]
+                    if "refined_image_url" in slide:
+                        slide_data["refined_image_url"] = slide["refined_image_url"]
+                    slides.append(slide_data)
+                
+                return {
+                    "deck_url": slides[0]["image_url"] if slides else None,  # First slide as preview
+                    "slides": slides,
+                    "total_slides": len(slides),
+                    "status": "generated"
+                }
+            else:
+                # Return placeholder on failure
+                return {
+                    "deck_url": f"https://livepeer.placeholder/decks/{uuid.uuid4()}",
+                    "slides": [],
+                    "total_slides": 0,
+                    "status": "failed",
+                    "error": result.get("error", "Unknown error")
+                }
+                
+        except Exception as e:
+            # Fallback to placeholder on exception
+            return {
+                "deck_url": f"https://livepeer.placeholder/decks/{uuid.uuid4()}",
+                "slides": [],
+                "total_slides": 0,
+                "status": "failed",
+                "error": str(e)
+            }
 
 
 
