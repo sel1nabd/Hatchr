@@ -4,8 +4,9 @@ Handles automatic deployment of generated backends to Render
 """
 
 import os
-import requests
 from typing import Dict, Optional
+
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,9 +20,7 @@ class RenderDeployer:
 
     @staticmethod
     def deploy_project(
-        project_id: str,
-        project_name: str,
-        zip_download_url: str
+        project_id: str, project_name: str, zip_download_url: str
     ) -> Dict:
         """
         Deploy a project to Render using their tarball/zip API
@@ -41,12 +40,12 @@ class RenderDeployer:
             }
         """
 
-        print("="*80)
+        print("=" * 80)
         print("🚀 DEPLOYING TO RENDER.COM")
         print(f"   Project: {project_name}")
         print(f"   Project ID: {project_id}")
         print(f"   Zip URL: {zip_download_url}")
-        print("="*80)
+        print("=" * 80)
 
         if not RENDER_API_KEY:
             raise ValueError("RENDER_API_KEY not found in environment variables")
@@ -64,21 +63,13 @@ class RenderDeployer:
             "branch": "main",
             "buildCommand": "pip install -r requirements.txt",
             "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
-            "envVars": [
-                {
-                    "key": "PYTHON_VERSION",
-                    "value": "3.11.0"
-                }
-            ],
-            "serviceDetails": {
-                "tarballUrl": zip_download_url,
-                "tarballBranch": "main"
-            }
+            "envVars": [{"key": "PYTHON_VERSION", "value": "3.11.0"}],
+            "serviceDetails": {"tarballUrl": zip_download_url, "tarballBranch": "main"},
         }
 
         headers = {
             "Authorization": f"Bearer {RENDER_API_KEY}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         print("🔄 Sending deployment request to Render API...")
@@ -88,10 +79,7 @@ class RenderDeployer:
 
         try:
             response = requests.post(
-                f"{RENDER_API_URL}/services",
-                json=payload,
-                headers=headers,
-                timeout=30
+                f"{RENDER_API_URL}/services", json=payload, headers=headers, timeout=30
             )
 
             response.raise_for_status()
@@ -110,14 +98,14 @@ class RenderDeployer:
             print(f"   Service ID: {service_id}")
             print(f"   Live URL: {service_url}")
             print(f"   Dashboard: {dashboard_url}")
-            print("="*80)
+            print("=" * 80)
 
             return {
                 "service_id": service_id,
                 "service_name": safe_name,
                 "live_url": service_url,
                 "dashboard_url": dashboard_url,
-                "status": "deploying"
+                "status": "deploying",
             }
 
         except requests.exceptions.HTTPError as e:
@@ -125,13 +113,13 @@ class RenderDeployer:
             print(f"❌ RENDER API ERROR: {e}")
             print(f"   Status Code: {e.response.status_code if e.response else 'N/A'}")
             print(f"   Response: {error_detail}")
-            print("="*80)
+            print("=" * 80)
 
             raise Exception(f"Render deployment failed: {error_detail}")
 
         except Exception as e:
             print(f"❌ DEPLOYMENT FAILED: {str(e)}")
-            print("="*80)
+            print("=" * 80)
             raise
 
     @staticmethod
@@ -153,15 +141,11 @@ class RenderDeployer:
         if not RENDER_API_KEY:
             return None
 
-        headers = {
-            "Authorization": f"Bearer {RENDER_API_KEY}"
-        }
+        headers = {"Authorization": f"Bearer {RENDER_API_KEY}"}
 
         try:
             response = requests.get(
-                f"{RENDER_API_URL}/services/{service_id}",
-                headers=headers,
-                timeout=10
+                f"{RENDER_API_URL}/services/{service_id}", headers=headers, timeout=10
             )
 
             response.raise_for_status()
@@ -172,7 +156,7 @@ class RenderDeployer:
             return {
                 "status": service.get("status", "unknown"),
                 "url": service.get("serviceDetails", {}).get("url", ""),
-                "last_deploy": service.get("updatedAt", "")
+                "last_deploy": service.get("updatedAt", ""),
             }
 
         except Exception as e:
@@ -184,11 +168,7 @@ class DeploymentManager:
     """High-level deployment orchestration"""
 
     @staticmethod
-    def deploy_to_render(
-        project_id: str,
-        project_name: str,
-        base_url: str
-    ) -> Dict:
+    def deploy_to_render(project_id: str, project_name: str, base_url: str) -> Dict:
         """
         Deploy a generated project to Render
 
@@ -211,7 +191,7 @@ class DeploymentManager:
         deployment = RenderDeployer.deploy_project(
             project_id=project_id,
             project_name=project_name,
-            zip_download_url=zip_download_url
+            zip_download_url=zip_download_url,
         )
 
         return deployment

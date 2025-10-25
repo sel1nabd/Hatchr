@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, setError } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -61,13 +61,14 @@ export function ProgressPage() {
   const [isComplete, setIsComplete] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const isVerified = sessionStorage.getItem("isVerified") === "true";
 
   useEffect(() => {
     // Set a placeholder project name from prompt for the header
     const prompt = sessionStorage.getItem("startupPrompt") || "";
 
-    if (!jobId) {
+    if (!jobIdFromUrl) {
       setError("No job ID found. Please start generation again.");
       return;
     }
@@ -75,7 +76,7 @@ export function ProgressPage() {
     // Poll backend for status
     const pollInterval = setInterval(async () => {
       try {
-        const status = await api.getStatus(jobId);
+        const status = await api.getStatus(jobIdFromUrl);
 
         setProgress(status.progress);
         setProjectName(status.project_name || "Your Startup");
@@ -88,7 +89,7 @@ export function ProgressPage() {
               return {
                 ...step,
                 status: backendStep.status === "in_progress" ? "processing" :
-                        backendStep.status === "completed" ? "complete" : "pending"
+                  backendStep.status === "completed" ? "complete" : "pending"
               };
             }
             return step;
@@ -137,7 +138,7 @@ export function ProgressPage() {
     if (prompt.toLowerCase().includes("airbnb")) return "PetStay";
     if (prompt.toLowerCase().includes("uber")) return "RideShare Pro";
     if (prompt.toLowerCase().includes("netflix")) return "StreamVault";
-    
+
     // Default names
     const defaultNames = ["StartupHub", "LaunchPad", "BuildFast", "IdeaForge"];
     return defaultNames[Math.floor(Math.random() * defaultNames.length)];
@@ -181,38 +182,34 @@ export function ProgressPage() {
           {/* Steps */}
           <div className="space-y-4">
             {steps.map((step, index) => (
-              <div 
-                key={step.id} 
-                className={`flex items-start gap-4 p-4 rounded-xl transition-all duration-300 ${
-                  step.status === "processing" 
-                    ? "bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 scale-105" 
-                    : step.status === "complete"
+              <div
+                key={step.id}
+                className={`flex items-start gap-4 p-4 rounded-xl transition-all duration-300 ${step.status === "processing"
+                  ? "bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 scale-105"
+                  : step.status === "complete"
                     ? "bg-green-50 border border-green-200"
                     : "bg-slate-50 border border-slate-200"
-                }`}
+                  }`}
               >
-                <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                  step.status === "complete" 
-                    ? "bg-green-500 text-white shadow-lg" 
-                    : step.status === "processing"
+                <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 ${step.status === "complete"
+                  ? "bg-green-500 text-white shadow-lg"
+                  : step.status === "processing"
                     ? "bg-gradient-to-br from-indigo-600 to-purple-600 text-white shadow-lg animate-pulse"
                     : "bg-slate-200 text-slate-400"
-                }`}>
+                  }`}>
                   {step.status === "complete" && <CheckCircle2 className="w-5 h-5" />}
                   {step.status === "processing" && <Loader2 className="w-5 h-5 animate-spin" />}
                   {step.status === "pending" && step.icon}
                 </div>
                 <div className="flex-1">
-                  <p className={`transition-colors ${
-                    step.status === "complete" ? "text-green-900" :
+                  <p className={`transition-colors ${step.status === "complete" ? "text-green-900" :
                     step.status === "processing" ? "text-indigo-900" :
-                    "text-slate-500"
-                  }`}>
+                      "text-slate-500"
+                    }`}>
                     Step {step.id}: {step.label}
                   </p>
-                  <p className={`transition-colors ${
-                    step.status === "processing" ? "text-indigo-600" : "text-slate-500"
-                  }`}>
+                  <p className={`transition-colors ${step.status === "processing" ? "text-indigo-600" : "text-slate-500"
+                    }`}>
                     {step.description}
                   </p>
                 </div>
@@ -247,9 +244,9 @@ export function ProgressPage() {
                 </Button>
               </div>
 
-              <Button 
-                onClick={handleLaunch} 
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200" 
+              <Button
+                onClick={handleLaunch}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
                 Continue to Launch Guide
