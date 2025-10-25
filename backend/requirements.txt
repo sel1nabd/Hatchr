@@ -9,4 +9,4 @@ requests==2.32.3
 # LLM APIs
 openai==1.59.5
 anthropic>=0.40.0
-livepeer-ai>=1.0.0
+livepeer-ai==0.10.0
