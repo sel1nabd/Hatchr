@@ -581,6 +581,152 @@ def _fallback_matches(profile: CofounderRequest, founders: List[Dict[str, Any]])
 
 # === BACKGROUND JOB PROCESSOR ===
 
+async def process_generation(job_id: str, prompt: str, verified: bool):
+    """
+    Background task: Generate complete backend and deploy to multi-tenant host
+
+    Steps:
+    1. GPT-4o enrichment + Sonnet 4.5 code generation (0-50%)
+    2. Deploy to multi-tenant host (50-70%)
+    3. Generate marketing assets with Livepeer (70-85%)
+    4. Create founder identity with Concordium (85-95%)
+    5. Finalize (95-100%)
+    """
+
+    try:
+        # Step 0: Sanitize the prompt for security
+        add_log(job_id, "🔒 Checking prompt for security issues...", "info")
+        is_safe, reason = await sanitize_prompt(prompt)
+
+        if not is_safe:
+            # Prompt failed security check
+            jobs_db[job_id]['status'] = 'failed'
+            error_message = f"Security check failed: {reason}"
+            add_log(job_id, f"❌ {error_message}", "error")
+            raise HTTPException(status_code=400, detail=error_message)
+
+        add_log(job_id, "✅ Prompt passed security validation", "success")
+
+        # Step 1: Generate backend (handled by generation_service)
+        update_step_status(job_id, 0, "in_progress")
+        update_progress(job_id, 0)
+
+        result = await generate_startup_backend(
+            user_idea=prompt,
+            job_id=job_id,
+            log_callback=add_log
+        )
+
+        update_step_status(job_id, 0, "completed")
+        update_progress(job_id, 50)
+
+        project_id = result['project_id']
+        project_name = result['project_name']
+        description = result['description']
+        enriched_spec = result.get('spec', {})  # Get the full enriched spec
+
+        # Step 2: Deploy to multi-tenant hosting
+        update_step_status(job_id, 1, "in_progress")
+        add_log(job_id, "🚀 Deploying to multi-tenant host...", "info")
+
+        # Get base URL from environment
+        base_url = os.getenv("HATCHR_PUBLIC_URL", "http://localhost:8001")
+
+        # Store generated code in database
+        await store_generated_project(
+            project_id=project_id,
+            project_name=project_name,
+            description=description,
+            files=result['files'],
+            spec=enriched_spec
+        )
+
+        # Deploy to multi-tenant hosting
+        deployment = RenderDeployer.deploy_project(
+            project_id=project_id,
+            project_name=project_name,
+            base_url=base_url,
+            main_py_code=result['files']['main.py']
+        )
+
+        live_url = deployment['live_url']
+
+        update_step_status(job_id, 1, "completed")
+        update_progress(job_id, 70)
+
+        # Step 3: Generate marketing assets (Livepeer) with enriched prompt
+        update_step_status(job_id, 2, "in_progress")
+        add_log(job_id, "🎬 Generating logo and pitch deck with Livepeer AI...", "info")
+
+        # Generate logo using enriched prompt
+        logo = await LivepeerService.generate_startup_logo(enriched_spec)
+        if logo.get("success"):
+            add_log(job_id, f"✅ Logo generated: {logo.get('logo_url', 'N/A')[:50]}...", "success")
+        else:
+            add_log(job_id, f"⚠️ Logo generation failed: {logo.get('error', 'Unknown')}", "warning")
+
+        # Generate pitch deck using enriched prompt
+        deck = await LivepeerService.generate_pitch_deck(enriched_spec)
+
+        update_step_status(job_id, 2, "completed")
+        update_progress(job_id, 85)
+
+        # Step 4: Create founder identity (Concordium)
+        update_step_status(job_id, 3, "in_progress")
+        add_log(job_id, "🔐 Creating founder identity on Concordium...", "info")
+
+        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
+
+        update_step_status(job_id, 3, "completed")
+        update_progress(job_id, 95)
+
+        # Step 5: Finalize
+        update_step_status(job_id, 4, "in_progress")
+
+        # Store project in database with ALL data
+        projects_db[project_id] = {
+            "project_id": project_id,
+            "project_name": project_name,
+            "description": description,
+            "live_url": live_url,
+            "api_docs_url": f"{live_url}/docs",
+            "download_url": f"{base_url}/download/{project_id}",
+            "tech_stack": ["FastAPI", "SQLite", "Python", "Uvicorn"],
+            "verified": concordium_identity['concordium_verified'],
+            "concordium_identity": concordium_identity,
+            "marketing_assets": {
+                "logo": logo,
+                "pitch_deck": deck
+            },
+            "deployment": deployment,
+            "files": list(result['files'].keys()),
+            "spec": result['spec'],
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        update_step_status(job_id, 4, "completed")
+        update_progress(job_id, 100)
+
+        # Mark job as completed
+        jobs_db[job_id]['status'] = 'completed'
+        jobs_db[job_id]['project_id'] = project_id
+        jobs_db[job_id]['project_name'] = project_name
+
+        add_log(job_id, f"🎉 Backend deployed! Live at: {live_url}", "success")
+        add_log(job_id, f"📚 API docs available at: {live_url}/docs", "info")
+        if logo.get("success"):
+            add_log(job_id, f"🎨 Startup logo generated with Livepeer AI", "success")
+        if deck.get("success") and deck.get("slides"):
+            add_log(job_id, f"📊 Pitch deck generated ({deck.get('total_slides', 0)} slides)", "success")
+        add_log(job_id, f"🔐 Founder identity verified on Concordium", "success")
+
+    except Exception as e:
+        jobs_db[job_id]['status'] = 'failed'
+        add_log(job_id, f"❌ Error: {str(e)}", "error")
+        logger.error(f"❌ Job {job_id} failed: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
+
 # === SANITISATION - BURN BABY BURN === #
 
 async def sanitize_prompt(prompt: str) -> tuple[bool, str]:
@@ -848,198 +994,6 @@ def update_progress(job_id: str, progress: int):
     """Update overall progress percentage"""
     if job_id in jobs_db:
         jobs_db[job_id]['progress'] = progress
-
-# === BACKGROUND JOB ===
-
-async def process_generation(job_id: str, prompt: str, verified: bool):
-    """
-    Background task: Generate complete backend and deploy to Railway
-
-    Steps:
-    1. GPT-4o enrichment + Sonnet 4.5 code generation (0-50%)
-    2. Deploy to Railway (50-70%)
-    3. Generate marketing assets with Livepeer (70-85%)
-    4. Create founder identity with Concordium (85-95%)
-    5. Finalize (95-100%)
-    """
-
-    try:
-        # Step 0: Sanitize the prompt for security
-        add_log(job_id, "🔒 Checking prompt for security issues...", "info")
-        is_safe, reason = await sanitize_prompt(prompt)
-
-        if not is_safe:
-            # Prompt failed security check
-            jobs_db[job_id]['status'] = 'failed'
-            error_message = f"Security check failed: {reason}"
-            add_log(job_id, f"❌ {error_message}", "error")
-            raise HTTPException(status_code=400, detail=error_message)
-
-        add_log(job_id, "✅ Prompt passed security validation", "success")
-
-        # Step 1: Generate backend (handled by generation_service)
-        update_step_status(job_id, 0, "in_progress")
-        update_progress(job_id, 0)
-
-        result = await generate_startup_backend(
-            user_idea=prompt,
-            job_id=job_id,
-            log_callback=add_log
-        )
-
-        update_step_status(job_id, 0, "completed")
-        update_progress(job_id, 50)
-
-        project_id = result['project_id']
-        project_name = result['project_name']
-        description = result['description']
-        enriched_spec = result.get('spec', {})  # Get the full enriched spec
-
-        # Step 2: Deploy to multi-tenant hosting
-        update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "🚀 Deploying to multi-tenant host...", "info")
-
-        # Get base URL from environment
-        base_url = os.getenv("HATCHR_PUBLIC_URL", "http://localhost:8001")
-
-        # Store generated code in database
-        await store_generated_project(
-            project_id=project_id,
-            project_name=project_name,
-            description=description,
-            files=result['files'],
-            spec=enriched_spec
-        )
-
-        # Deploy to multi-tenant hosting
-        deployment = RenderDeployer.deploy_project(
-            project_id=project_id,
-            project_name=project_name,
-            base_url=base_url,
-            main_py_code=result['files']['main.py']
-        )
-
-        live_url = deployment['live_url']
-
-        update_step_status(job_id, 1, "completed")
-        update_progress(job_id, 70)
-
-        # Step 3: Generate marketing assets (Livepeer) with enriched prompt
-        update_step_status(job_id, 2, "in_progress")
-        add_log(job_id, "🎬 Generating logo and pitch deck with Livepeer AI...", "info")
-
-        # Generate logo using enriched prompt
-        logo = await LivepeerService.generate_startup_logo(enriched_spec)
-        if logo.get("success"):
-            add_log(job_id, f"✅ Logo generated: {logo.get('logo_url', 'N/A')[:50]}...", "success")
-        else:
-            add_log(job_id, f"⚠️ Logo generation failed: {logo.get('error', 'Unknown')}", "warning")
-
-        # Generate pitch deck using enriched prompt
-        deck = await LivepeerService.generate_pitch_deck(enriched_spec)
-
-        update_step_status(job_id, 2, "completed")
-        update_progress(job_id, 85)
-
-        # Step 4: Create founder identity (Concordium)
-        update_step_status(job_id, 3, "in_progress")
-        add_log(job_id, "🔐 Creating founder identity on Concordium...", "info")
-
-        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
-
-        update_step_status(job_id, 3, "completed")
-        update_progress(job_id, 95)
-
-        # Step 5: Finalize
-        update_step_status(job_id, 4, "in_progress")
-
-        # Store project in database with ALL data
-        projects_db[project_id] = {
-            "project_id": project_id,
-            "project_name": project_name,
-            "description": description,
-            "live_url": live_url,
-            "api_docs_url": f"{live_url}/docs",
-            "download_url": f"{base_url}/download/{project_id}",
-            "tech_stack": ["FastAPI", "SQLite", "Python", "Uvicorn"],
-            "verified": concordium_identity['concordium_verified'],
-            "concordium_identity": concordium_identity,
-            "marketing_assets": {
-                "logo": logo,
-                "pitch_deck": deck
-            },
-            "deployment": deployment,
-            "files": list(result['files'].keys()),
-            "spec": result['spec'],
-            "created_at": datetime.utcnow().isoformat()
-        }
-
-        update_step_status(job_id, 4, "completed")
-        update_progress(job_id, 100)
-
-        # Mark job as completed
-        jobs_db[job_id]['status'] = 'completed'
-        jobs_db[job_id]['project_id'] = project_id
-        jobs_db[job_id]['project_name'] = project_name
-
-        add_log(job_id, f"🎉 Backend deployed! Live at: {live_url}", "success")
-        add_log(job_id, f"📚 API docs available at: {live_url}/docs", "info")
-        if logo.get("success"):
-            add_log(job_id, f"🎨 Startup logo generated with Livepeer AI", "success")
-        if deck.get("success") and deck.get("slides"):
-            add_log(job_id, f"📊 Pitch deck generated ({deck.get('total_slides', 0)} slides)", "success")
-        add_log(job_id, f"🔐 Founder identity verified on Concordium", "success")
-
-    except Exception as e:
-        jobs_db[job_id]['status'] = 'failed'
-        add_log(job_id, f"❌ Error: {str(e)}", "error")
-        print(f"❌ Job {job_id} failed: {str(e)}")
-
-# === STARTUP EVENT ===
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database and reload generated projects on startup"""
-    await init_database()
-
-    # Reload all generated projects into multi-tenant host
-    print("\n" + "="*80)
-    print("🔄 RELOADING GENERATED PROJECTS INTO MULTI-TENANT HOST")
-    print("="*80)
-
-    projects = await list_all_generated_projects()
-    print(f"📦 Found {len(projects)} projects in database")
-
-    for project in projects:
-        try:
-            project_id = project['project_id']
-            project_name = project['project_name']
-
-            # Fetch full project data
-            full_project = await get_generated_project(project_id)
-            if full_project and 'files' in full_project:
-                main_py_code = full_project['files'].get('main.py', '')
-
-                if main_py_code:
-                    # Load into multi-tenant host
-                    success = multitenant_host.load_project_app(
-                        project_id=project_id,
-                        main_py_code=main_py_code,
-                        project_name=project_name
-                    )
-
-                    if success:
-                        print(f"   ✅ Loaded: {project_name} ({project_id[:8]}...)")
-                    else:
-                        print(f"   ⚠️  Failed to load: {project_name}")
-                else:
-                    print(f"   ⚠️  No main.py found for: {project_name}")
-        except Exception as e:
-            print(f"   ❌ Error loading {project.get('project_name', 'unknown')}: {str(e)}")
-
-    print("="*80)
-    print(f"✅ MULTI-TENANT HOST READY - {len(multitenant_host.hosted_apps)} projects loaded")
-    print("="*80 + "\n")
 
 # === CONCORDIUM AUTH HELPERS ===
 
