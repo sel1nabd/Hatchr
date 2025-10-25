@@ -3,6 +3,9 @@ import { PromptPage } from "./components/PromptPage";
 import { ProgressPage } from "./components/ProgressPage";
 import { LaunchPage } from "./components/LaunchPage";
 import FigmaPreviewPage from "./components/FigmaPreviewPage";
+import CofounderFinderPage from "./components/CofounderFinderPage";
+import CofounderExplorePage from "./components/CofounderExplorePage";
+import CofounderProfilePage from "./components/CofounderProfilePage";
 
 export default function App() {
   return (
@@ -12,6 +15,9 @@ export default function App() {
         <Route path="/generate" element={<ProgressPage />} />
         <Route path="/launch" element={<LaunchPage />} />
         <Route path="/figma" element={<FigmaPreviewPage />} />
+        <Route path="/cofounder" element={<CofounderFinderPage />} />
+        <Route path="/cofounder/explore" element={<CofounderExplorePage />} />
+        <Route path="/cofounder/profile" element={<CofounderProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
