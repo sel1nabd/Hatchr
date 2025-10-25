@@ -233,7 +233,7 @@ export const concordiumWallet = new ConcordiumWalletService();
 
 /**
  * Create identity statement for Hatchr signup
- * Requires: age 18+, valid country of residence
+ * Requires: age 18+, name
  */
 export function createHatchrIdentityStatement(): CredentialStatement {
   // Calculate date range for 18+ years old
@@ -241,6 +241,7 @@ export function createHatchrIdentityStatement(): CredentialStatement {
   const eighteenYearsAgo = currentYear - 18;
 
   // Concordium requires a CredentialStatement with idQualifier and statement array
+  // Only requesting age verification (18+) - no country restrictions
   const statement: CredentialStatement = {
     idQualifier: {
       type: 'cred',
@@ -252,17 +253,6 @@ export function createHatchrIdentityStatement(): CredentialStatement {
         attributeTag: 'dob', // Date of birth
         lower: '18000101', // Lower bound (very old)
         upper: `${eighteenYearsAgo}1231`, // Must be born before 18 years ago
-      },
-      {
-        type: 'AttributeInSet',
-        attributeTag: 'countryOfResidence',
-        // List of valid countries (example - you can modify this)
-        set: [
-          'US', 'CA', 'GB', 'AU', 'NZ', 'SG', // English-speaking
-          'AT', 'BE', 'BG', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', // EU countries
-          'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT',
-          'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'HR',
-        ],
       },
     ] as AtomicStatementV2[],
   };

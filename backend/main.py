@@ -23,7 +23,7 @@ from datetime import datetime
 from generation_service import generate_startup_backend
 from deploy_service import RenderDeployer
 from pitch_deck_generator import generate_pitch_deck as generate_deck_slides
-from lpfuncs import generate_startup_branding
+from lpfuncs import generate_startup_branding, generate_image_from_text
 from database import (
     init_database, get_user_by_wallet, create_user,
     update_user_login, create_session, get_session_by_token,
@@ -169,43 +169,95 @@ class ConcordiumService:
         }
 
 class LivepeerService:
-    """Placeholder for Livepeer Daydream API video generation"""
+    """Livepeer AI service for generating marketing assets"""
 
     @staticmethod
-    async def generate_marketing_video(project_summary: str, project_name: str) -> Dict:
-        """Generate pitch video using Daydream API"""
+    async def generate_startup_logo(enriched_spec: Dict) -> Dict:
+        """
+        Generate startup logo using Livepeer AI from GPT-4o enriched prompt
 
-        # TODO: Implement actual Livepeer Daydream API
-        # - Send project summary as script
-        # - Generate 30-second pitch video
-        # - Return video URL and thumbnail
+        Args:
+            enriched_spec: Full enriched specification from GPT-4o containing:
+                - enriched_prompt: Detailed prompt with market context
+                - project_name: Startup name
+                - description: Brief description
+                - key_features: List of features
 
-        return {
-            "video_url": f"https://livepeer.placeholder/videos/{uuid.uuid4()}",
-            "thumbnail_url": f"https://livepeer.placeholder/thumbs/{uuid.uuid4()}",
-            "duration": 30,
-            "status": "generated"
-        }
-
-    @staticmethod
-    async def generate_pitch_deck(project_summary: str) -> Dict:
-        """Generate visual pitch deck using Livepeer AI"""
-        
+        Returns:
+            Dict with logo_url, success status, and metadata
+        """
         try:
-            # Extract basic info from summary for better deck generation
-            startup_name = ""
-            if "Name:" in project_summary or "name:" in project_summary.lower():
-                # Try to extract name from summary
-                lines = project_summary.split('\n')
-                for line in lines:
-                    if 'name' in line.lower():
-                        startup_name = line.split(':')[-1].strip()
-                        break
-            
+            project_name = enriched_spec.get('project_name', '')
+            description = enriched_spec.get('description', '')
+            enriched_prompt = enriched_spec.get('enriched_prompt', '')
+
+            # Use the enriched prompt as context for logo generation
+            logo_context = f"{project_name}: {description}. {enriched_prompt[:300]}"
+
+            print(f"🎨 Generating logo with enriched context...")
+
+            result = generate_startup_branding(
+                startup_idea=logo_context,
+                startup_name=project_name,
+                style="modern tech",
+                color_scheme="",
+                logo_width=1024,
+                logo_height=1024,
+                include_video=False  # Just logo for now
+            )
+
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "logo_url": result.get("logo_url"),
+                    "metadata": result.get("metadata", {}),
+                    "status": "generated"
+                }
+            else:
+                return {
+                    "success": False,
+                    "logo_url": None,
+                    "error": result.get("error", "Unknown error"),
+                    "status": "failed"
+                }
+
+        except Exception as e:
+            print(f"❌ Logo generation error: {e}")
+            return {
+                "success": False,
+                "logo_url": None,
+                "error": str(e),
+                "status": "failed"
+            }
+
+    @staticmethod
+    async def generate_pitch_deck(enriched_spec: Dict) -> Dict:
+        """
+        Generate visual pitch deck using Livepeer AI from GPT-4o enriched data
+
+        Args:
+            enriched_spec: Full enriched specification from GPT-4o
+
+        Returns:
+            Dict with slides array, deck_url, and status
+        """
+
+        try:
+            project_name = enriched_spec.get('project_name', '')
+            enriched_prompt = enriched_spec.get('enriched_prompt', '')
+            description = enriched_spec.get('description', '')
+            industry = enriched_spec.get('market_context', '')
+
+            # Use enriched prompt for context
+            startup_idea = f"{description}. {enriched_prompt[:400]}"
+
+            print(f"📊 Generating pitch deck with enriched context...")
+
             # Generate the pitch deck synchronously (lpfuncs uses sync API)
             result = generate_deck_slides(
-                startup_idea=project_summary,
-                startup_name=startup_name,
+                startup_idea=startup_idea,
+                startup_name=project_name,
+                industry=industry[:100] if industry else "",
                 style="professional minimalist"
             )
             
@@ -878,6 +930,7 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         project_id = result['project_id']
         project_name = result['project_name']
         description = result['description']
+        enriched_spec = result.get('spec', {})  # Get the full enriched spec
 
         # Step 2: Deploy to Render
         update_step_status(job_id, 1, "in_progress")
@@ -897,20 +950,19 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         update_step_status(job_id, 1, "completed")
         update_progress(job_id, 70)
 
-        # Step 3: Generate marketing assets (Livepeer)
+        # Step 3: Generate marketing assets (Livepeer) with enriched prompt
         update_step_status(job_id, 2, "in_progress")
-        add_log(job_id, "🎬 Generating marketing materials with Livepeer...", "info")
+        add_log(job_id, "🎬 Generating logo and pitch deck with Livepeer AI...", "info")
 
-        video = await LivepeerService.generate_marketing_video(
-            f"{project_name}. {description[:200]}",
-            project_name
-        )
-        deck = await LivepeerService.generate_pitch_deck(description[:500])
-        logo = await LivepeerService.generate_startup_logo(
-            startup_idea=description[:300],
-            startup_name=project_name,
-            style="modern"
-        )
+        # Generate logo using enriched prompt
+        logo = await LivepeerService.generate_startup_logo(enriched_spec)
+        if logo.get("success"):
+            add_log(job_id, f"✅ Logo generated: {logo.get('logo_url', 'N/A')[:50]}...", "success")
+        else:
+            add_log(job_id, f"⚠️ Logo generation failed: {logo.get('error', 'Unknown')}", "warning")
+
+        # Generate pitch deck using enriched prompt
+        deck = await LivepeerService.generate_pitch_deck(enriched_spec)
 
         update_step_status(job_id, 2, "completed")
         update_progress(job_id, 85)
@@ -939,9 +991,8 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             "verified": concordium_identity['concordium_verified'],
             "concordium_identity": concordium_identity,
             "marketing_assets": {
-                "video": video,
-                "pitch_deck": deck,
-                "logo": logo
+                "logo": logo,
+                "pitch_deck": deck
             },
             "deployment": deployment,
             "files": list(result['files'].keys()),
@@ -959,7 +1010,10 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
 
         add_log(job_id, f"🎉 Backend deployed! Live at: {live_url}", "success")
         add_log(job_id, f"📚 API docs available at: {live_url}/docs", "info")
-        add_log(job_id, f"🎬 Marketing video generated", "success")
+        if logo.get("success"):
+            add_log(job_id, f"🎨 Startup logo generated with Livepeer AI", "success")
+        if deck.get("success") and deck.get("slides"):
+            add_log(job_id, f"📊 Pitch deck generated ({deck.get('total_slides', 0)} slides)", "success")
         add_log(job_id, f"🔐 Founder identity verified on Concordium", "success")
 
     except Exception as e:
@@ -994,7 +1048,8 @@ def extract_identity_from_presentation(presentation: Dict[str, Any]) -> Dict[str
     Extract identity attributes from Concordium verifiable presentation.
 
     The presentation contains zero-knowledge proofs of identity attributes.
-    We extract: name (if disclosed), age (from dob range), country
+    We extract: name (if disclosed), age (from dob range)
+    Country is optional and only extracted if present in the proof.
     """
     try:
         # This is a simplified version - actual implementation would verify ZK proofs

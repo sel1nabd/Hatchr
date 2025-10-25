@@ -135,7 +135,7 @@ export function SignupPage() {
             <Shield className="h-4 w-4" />
             <AlertDescription className="text-sm">
               Your identity is verified using zero-knowledge proofs. We only verify that you're 18+
-              and your country of residence, without exposing your personal data.
+              without exposing your personal data.
             </AlertDescription>
           </Alert>
 
@@ -216,7 +216,6 @@ export function SignupPage() {
             <p className="text-xs text-gray-500 mb-2 font-semibold">Requirements:</p>
             <ul className="text-xs text-gray-500 space-y-1">
               <li>✓ Must be 18 years or older</li>
-              <li>✓ Valid country of residence</li>
               <li>✓ Concordium identity verification</li>
             </ul>
           </div>
