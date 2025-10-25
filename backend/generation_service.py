@@ -7,6 +7,7 @@ import os
 import json
 import uuid
 import zipfile
+import logging
 from pathlib import Path
 from typing import Dict, Callable
 from openai import AsyncOpenAI
@@ -15,6 +16,13 @@ from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("generation_service")
 
 # Initialize clients
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -47,10 +55,10 @@ class PromptEnricher:
             }
         """
 
-        print("="*80)
-        print("🔵 GPT-4O PROMPT ENRICHMENT STARTING")
-        print(f"📥 USER IDEA: {user_idea}")
-        print("="*80)
+        logger.info("="*80)
+        logger.info("🔵 GPT-4O PROMPT ENRICHMENT STARTING")
+        logger.info(f"📥 USER IDEA: {user_idea}")
+        logger.info("="*80)
 
         system_prompt = """You are an expert product analyst and technical architect.
 
@@ -93,7 +101,7 @@ Return as JSON."""
 
         client = get_openai_client()
 
-        print("🔄 Calling OpenAI GPT-4o...")
+        logger.info("🔄 Calling OpenAI GPT-4o...")
 
         response = await client.chat.completions.create(
             model="gpt-4o",
@@ -107,12 +115,12 @@ Return as JSON."""
 
         result = json.loads(response.choices[0].message.content)
 
-        print("✅ GPT-4o ENRICHMENT COMPLETE")
-        print(f"   Project: {result.get('project_name', 'N/A')}")
-        print(f"   Examples: {', '.join(result.get('example_companies', []))}")
-        print(f"   Features: {len(result.get('key_features', []))} identified")
-        print(f"   Enriched Prompt Length: {len(result.get('enriched_prompt', ''))} chars")
-        print("="*80)
+        logger.info("✅ GPT-4o ENRICHMENT COMPLETE")
+        logger.info(f"   Project: {result.get('project_name', 'N/A')}")
+        logger.info(f"   Examples: {', '.join(result.get('example_companies', []))}")
+        logger.info(f"   Features: {len(result.get('key_features', []))} identified")
+        logger.info(f"   Enriched Prompt Length: {len(result.get('enriched_prompt', ''))} chars")
+        logger.info("="*80)
 
         return result
 
@@ -137,10 +145,10 @@ class CodeGenerator:
             }
         """
 
-        print("="*80)
-        print("🟣 SONNET 4.5 CODE GENERATION STARTING")
-        print(f"📥 Project: {enriched_spec.get('project_name', 'N/A')}")
-        print("="*80)
+        logger.info("="*80)
+        logger.info("🟣 SONNET 4.5 CODE GENERATION STARTING")
+        logger.info(f"📥 Project: {enriched_spec.get('project_name', 'N/A')}")
+        logger.info("="*80)
 
         prompt = f"""You are an expert Python backend developer. Generate a complete, production-ready FastAPI + SQLite backend.
 
@@ -206,8 +214,8 @@ Generate complete, working, immediately deployable code. No placeholders. No TOD
 
         client = get_anthropic_client()
 
-        print("🔄 Calling Anthropic Sonnet 4.5...")
-        print(f"   Model: claude-sonnet-4-5-20250929")
+        logger.info("🔄 Calling Anthropic Sonnet 4.5...")
+        logger.info(f"   Model: claude-sonnet-4-5-20250929")
 
         message = client.messages.create(
             model="claude-sonnet-4-5-20250929",
@@ -220,19 +228,19 @@ Generate complete, working, immediately deployable code. No placeholders. No TOD
 
         response_text = message.content[0].text
 
-        print("✅ SONNET 4.5 GENERATION COMPLETE")
-        print(f"   Response Length: {len(response_text)} chars")
-        print(f"   Input Tokens: {message.usage.input_tokens}")
-        print(f"   Output Tokens: {message.usage.output_tokens}")
-        print("="*80)
+        logger.info("✅ SONNET 4.5 GENERATION COMPLETE")
+        logger.info(f"   Response Length: {len(response_text)} chars")
+        logger.info(f"   Input Tokens: {message.usage.input_tokens}")
+        logger.info(f"   Output Tokens: {message.usage.output_tokens}")
+        logger.info("="*80)
 
         # Parse the response to extract files
         files = CodeGenerator._parse_files_from_response(response_text)
 
-        print(f"📁 Extracted {len(files)} files:")
+        logger.info(f"📁 Extracted {len(files)} files:")
         for filename in files.keys():
-            print(f"   - {filename} ({len(files[filename])} chars)")
-        print("="*80)
+            logger.info(f"   - {filename} ({len(files[filename])} chars)")
+        logger.info("="*80)
 
         return files
 
@@ -304,10 +312,10 @@ class ProjectManager:
             (project_path, zip_path)
         """
 
-        print("="*80)
-        print("💾 SAVING PROJECT TO DISK")
-        print(f"   Project ID: {project_id}")
-        print("="*80)
+        logger.info("="*80)
+        logger.info("💾 SAVING PROJECT TO DISK")
+        logger.info(f"   Project ID: {project_id}")
+        logger.info("="*80)
 
         # Create directories if they don't exist
         projects_dir = Path("projects")
@@ -324,7 +332,7 @@ class ProjectManager:
         for filename, content in files.items():
             file_path = project_path / filename
             file_path.write_text(content, encoding="utf-8")
-            print(f"   ✅ Wrote {filename} ({len(content)} chars)")
+            logger.info(f"   ✅ Wrote {filename} ({len(content)} chars)")
 
         # Create zip file
         zip_path = tmp_dir / f"{project_id}.zip"
@@ -333,8 +341,8 @@ class ProjectManager:
                 if file.is_file():
                     zipf.write(file, arcname=file.relative_to(project_path))
 
-        print(f"   📦 Created zip: {zip_path} ({zip_path.stat().st_size / 1024:.1f} KB)")
-        print("="*80)
+        logger.info(f"   📦 Created zip: {zip_path} ({zip_path.stat().st_size / 1024:.1f} KB)")
+        logger.info("="*80)
 
         return project_path, zip_path
 
@@ -364,11 +372,11 @@ async def generate_startup_backend(
         }
     """
 
-    print("\n" + "="*80)
-    print("🚀 STARTING COMPLETE STARTUP BACKEND GENERATION")
-    print(f"   Job ID: {job_id}")
-    print(f"   User Idea: {user_idea}")
-    print("="*80 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info("🚀 STARTING COMPLETE STARTUP BACKEND GENERATION")
+    logger.info(f"   Job ID: {job_id}")
+    logger.info(f"   User Idea: {user_idea}")
+    logger.info("="*80 + "\n")
 
     # Step 1: Enrich prompt with GPT-4o (0-25%)
     log_callback(job_id, "🔍 Researching your idea and finding competitors...", "info")
@@ -402,14 +410,14 @@ async def generate_startup_backend(
         log_callback(job_id, f"❌ File save failed: {str(e)}", "error")
         raise
 
-    print("\n" + "="*80)
-    print("✅ GENERATION COMPLETE - READY FOR DEPLOYMENT")
-    print(f"   Project ID: {project_id}")
-    print(f"   Project Name: {enriched_spec.get('project_name', 'N/A')}")
-    print(f"   Project Path: {project_path}")
-    print(f"   Zip Path: {zip_path}")
-    print(f"   Files: {', '.join(files.keys())}")
-    print("="*80 + "\n")
+    logger.info("\n" + "="*80)
+    logger.info("✅ GENERATION COMPLETE - READY FOR DEPLOYMENT")
+    logger.info(f"   Project ID: {project_id}")
+    logger.info(f"   Project Name: {enriched_spec.get('project_name', 'N/A')}")
+    logger.info(f"   Project Path: {project_path}")
+    logger.info(f"   Zip Path: {zip_path}")
+    logger.info(f"   Files: {', '.join(files.keys())}")
+    logger.info("="*80 + "\n")
 
     return {
         "project_id": project_id,
