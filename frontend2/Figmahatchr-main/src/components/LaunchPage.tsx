@@ -199,6 +199,21 @@ export function LaunchPage() {
     };
   }, [founderProfile, projectId]);
 
+  if (!projectId) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6">
+        <Card className="max-w-md w-full p-6 text-center">
+          <div className="flex items-center justify-center mb-3">
+            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h2 className="text-slate-900 font-semibold mb-2">No project to show</h2>
+          <p className="text-slate-600 mb-4">Generate a startup first so we can show the launch details.</p>
+          <Button onClick={() => navigate("/")}>Back to Startup Generator</Button>
+        </Card>
+      </div>
+    );
+  }
+
   const handleReRun = () => {
     navigate("/");
   };

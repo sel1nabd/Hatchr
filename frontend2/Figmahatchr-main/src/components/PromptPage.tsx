@@ -209,7 +209,7 @@ export function PromptPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Button
                 onClick={handleGenerate}
                 disabled={!prompt.trim()}
@@ -229,16 +229,13 @@ export function PromptPage() {
                 <Users className="w-5 h-5 mr-2" />
                 Find Cofounders Now
               </Button>
-              <Button
-                onClick={() => navigate("/figma")}
-                variant="outline"
-                className="w-full border-slate-300 hover:border-indigo-300 hover:bg-white"
-                size="lg"
-              >
-                <FigmaIcon className="w-5 h-5 mr-2" />
-                View Figma UI
-              </Button>
             </div>
+
+            {genError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {genError}
+              </div>
+            )}
           </div>
 
           {/* Feature Pills */}

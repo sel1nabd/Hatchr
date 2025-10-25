@@ -165,7 +165,10 @@ export function ProgressPage() {
       </div>
     );
   }
+<<<<<<< HEAD
 >>>>>>> d2d5a3e (feat(frontend2): integrate full backend functionality (generate→status polling→launch), lovable link, and local cofounder fallback; aligns with Next features)
+=======
+>>>>>>> 806de71 (feat(frontend2): remove Explore and Figma routes; rename Generator to 'Startup Generator'; add gen/launch guards and error UI; keep Profile & Finder; solid header nav)
 
   const generateProjectName = (prompt: string): string => {
     // Simple logic to generate a name from the prompt
