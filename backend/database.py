@@ -42,6 +42,21 @@ async def init_database():
             )
         """)
 
+        # Create generated_projects table for storing generated code
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS generated_projects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT UNIQUE NOT NULL,
+                project_name TEXT NOT NULL,
+                description TEXT,
+                main_py TEXT NOT NULL,
+                requirements_txt TEXT NOT NULL,
+                readme_md TEXT,
+                spec_json TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
         # Create index for faster lookups
         await db.execute("""
             CREATE INDEX IF NOT EXISTS idx_wallet_address
@@ -51,6 +66,11 @@ async def init_database():
         await db.execute("""
             CREATE INDEX IF NOT EXISTS idx_auth_token
             ON sessions(auth_token)
+        """)
+
+        await db.execute("""
+            CREATE INDEX IF NOT EXISTS idx_project_id
+            ON generated_projects(project_id)
         """)
 
         await db.commit()
@@ -188,3 +208,75 @@ async def cleanup_expired_sessions() -> int:
         )
         await db.commit()
         return cursor.rowcount
+
+
+# === GENERATED PROJECTS FUNCTIONS ===
+
+async def store_generated_project(
+    project_id: str,
+    project_name: str,
+    description: str,
+    files: Dict[str, str],
+    spec: Dict[str, Any]
+) -> None:
+    """Store generated project code in database"""
+    import json
+
+    now = datetime.utcnow().isoformat()
+
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        await db.execute(
+            """
+            INSERT OR REPLACE INTO generated_projects
+            (project_id, project_name, description, main_py, requirements_txt, readme_md, spec_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                project_id,
+                project_name,
+                description,
+                files.get('main.py', ''),
+                files.get('requirements.txt', ''),
+                files.get('README.md', ''),
+                json.dumps(spec),
+                now
+            )
+        )
+        await db.commit()
+
+
+async def get_generated_project(project_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve generated project from database"""
+    import json
+
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM generated_projects WHERE project_id = ?",
+            (project_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                project = dict(row)
+                # Parse spec JSON
+                if project.get('spec_json'):
+                    project['spec'] = json.loads(project['spec_json'])
+                # Reconstruct files dict
+                project['files'] = {
+                    'main.py': project['main_py'],
+                    'requirements.txt': project['requirements_txt'],
+                    'README.md': project.get('readme_md', '')
+                }
+                return project
+            return None
+
+
+async def list_all_generated_projects() -> list:
+    """List all generated projects"""
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT project_id, project_name, description, created_at FROM generated_projects ORDER BY created_at DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]

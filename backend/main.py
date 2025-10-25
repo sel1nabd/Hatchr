@@ -3,7 +3,7 @@ Hatchr Backend - AI-Powered Startup Generator
 Generates complete FastAPI backends from a single prompt using GPT-4o + Sonnet 4.5
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -27,8 +27,10 @@ from lpfuncs import generate_startup_branding, generate_image_from_text
 from database import (
     init_database, get_user_by_wallet, create_user,
     update_user_login, create_session, get_session_by_token,
-    invalidate_session
+    invalidate_session, store_generated_project, get_generated_project,
+    list_all_generated_projects
 )
+from multitenant_service import multitenant_host, route_to_generated_project
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -44,7 +46,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001",
         "http://localhost:3002",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "https://hatchr-fe.onrender.com",
+        "https://hatchr.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -932,17 +936,28 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         description = result['description']
         enriched_spec = result.get('spec', {})  # Get the full enriched spec
 
-        # Step 2: Deploy to Render
+        # Step 2: Deploy to multi-tenant hosting
         update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "🚀 Deploying to Render.com...", "info")
+        add_log(job_id, "🚀 Deploying to multi-tenant host...", "info")
 
-        # Create zip download URL for Render to fetch
+        # Get base URL from environment
         base_url = os.getenv("HATCHR_PUBLIC_URL", "http://localhost:8001")
 
+        # Store generated code in database
+        await store_generated_project(
+            project_id=project_id,
+            project_name=project_name,
+            description=description,
+            files=result['files'],
+            spec=enriched_spec
+        )
+
+        # Deploy to multi-tenant hosting
         deployment = RenderDeployer.deploy_project(
             project_id=project_id,
             project_name=project_name,
-            zip_download_url=f"{base_url}/download/{project_id}"
+            base_url=base_url,
+            main_py_code=result['files']['main.py']
         )
 
         live_url = deployment['live_url']
@@ -986,7 +1001,7 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
             "description": description,
             "live_url": live_url,
             "api_docs_url": f"{live_url}/docs",
-            "download_url": f"http://localhost:8001/download/{project_id}",
+            "download_url": f"{base_url}/download/{project_id}",
             "tech_stack": ["FastAPI", "SQLite", "Python", "Uvicorn"],
             "verified": concordium_identity['concordium_verified'],
             "concordium_identity": concordium_identity,
@@ -1025,8 +1040,47 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
+    """Initialize database and reload generated projects on startup"""
     await init_database()
+
+    # Reload all generated projects into multi-tenant host
+    print("\n" + "="*80)
+    print("🔄 RELOADING GENERATED PROJECTS INTO MULTI-TENANT HOST")
+    print("="*80)
+
+    projects = await list_all_generated_projects()
+    print(f"📦 Found {len(projects)} projects in database")
+
+    for project in projects:
+        try:
+            project_id = project['project_id']
+            project_name = project['project_name']
+
+            # Fetch full project data
+            full_project = await get_generated_project(project_id)
+            if full_project and 'files' in full_project:
+                main_py_code = full_project['files'].get('main.py', '')
+
+                if main_py_code:
+                    # Load into multi-tenant host
+                    success = multitenant_host.load_project_app(
+                        project_id=project_id,
+                        main_py_code=main_py_code,
+                        project_name=project_name
+                    )
+
+                    if success:
+                        print(f"   ✅ Loaded: {project_name} ({project_id[:8]}...)")
+                    else:
+                        print(f"   ⚠️  Failed to load: {project_name}")
+                else:
+                    print(f"   ⚠️  No main.py found for: {project_name}")
+        except Exception as e:
+            print(f"   ❌ Error loading {project.get('project_name', 'unknown')}: {str(e)}")
+
+    print("="*80)
+    print(f"✅ MULTI-TENANT HOST READY - {len(multitenant_host.hosted_apps)} projects loaded")
+    print("="*80 + "\n")
 
 # === CONCORDIUM AUTH HELPERS ===
 
@@ -1225,7 +1279,7 @@ async def generate_startup(request: GenerateRequest, background_tasks: Backgroun
         "progress": 0,
         "steps": [
             {"id": 0, "title": "Generating backend code", "status": "pending"},
-            {"id": 1, "title": "Deploying to Render", "status": "pending"},
+            {"id": 1, "title": "Deploying to multi-tenant host", "status": "pending"},
             {"id": 2, "title": "Generating marketing assets", "status": "pending"},
             {"id": 3, "title": "Creating founder identity", "status": "pending"},
             {"id": 4, "title": "Finalizing startup", "status": "pending"}
@@ -1335,6 +1389,53 @@ async def list_projects():
             for j in jobs_db.values()
         ]
     }
+
+@app.get("/projects/{project_id}/{path:path}")
+async def proxy_to_generated_project(project_id: str, path: str, request: Request):
+    """
+    Proxy requests to generated projects
+
+    Examples:
+    - GET /projects/{id}/items -> Routes to generated app's GET /items
+    - GET /projects/{id}/docs -> Routes to generated app's /docs
+    """
+    return await route_to_generated_project(project_id, request)
+
+
+@app.get("/projects/{project_id}")
+async def proxy_to_generated_project_root(project_id: str, request: Request):
+    """
+    Proxy root path requests to generated projects
+
+    Example:
+    - GET /projects/{id}/ -> Routes to generated app's GET /
+    """
+    return await route_to_generated_project(project_id, request)
+
+
+@app.post("/projects/{project_id}/{path:path}")
+async def proxy_post_to_generated_project(project_id: str, path: str, request: Request):
+    """Proxy POST requests to generated projects"""
+    return await route_to_generated_project(project_id, request)
+
+
+@app.put("/projects/{project_id}/{path:path}")
+async def proxy_put_to_generated_project(project_id: str, path: str, request: Request):
+    """Proxy PUT requests to generated projects"""
+    return await route_to_generated_project(project_id, request)
+
+
+@app.delete("/projects/{project_id}/{path:path}")
+async def proxy_delete_to_generated_project(project_id: str, path: str, request: Request):
+    """Proxy DELETE requests to generated projects"""
+    return await route_to_generated_project(project_id, request)
+
+
+@app.patch("/projects/{project_id}/{path:path}")
+async def proxy_patch_to_generated_project(project_id: str, path: str, request: Request):
+    """Proxy PATCH requests to generated projects"""
+    return await route_to_generated_project(project_id, request)
+
 
 @app.post("/api/cofounders/match")
 async def match_cofounders(profile: CofounderRequest):
