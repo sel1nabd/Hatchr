@@ -4,6 +4,8 @@ pydantic==2.10.3
 python-multipart==0.0.18
 httpx==0.28.1
 python-dotenv==1.0.1
+requests==2.31.0
 
 # LLM & Search APIs
 openai==1.59.5
+livepeer-ai>=1.0.0
