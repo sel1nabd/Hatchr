@@ -23,56 +23,61 @@ export default function HeaderNav() {
             end
             className={({ isActive }) =>
               cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium",
-                isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
+                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
               )
             }
           >
-            Generator
+            <Rocket className="w-4 h-4" />
+            <span>Generator</span>
           </NavLink>
           <NavLink
             to="/cofounder"
             className={({ isActive }) =>
               cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1",
-                isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
+                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
               )
             }
           >
-            <Users className="w-4 h-4" /> Finder
+            <Users className="w-4 h-4" />
+            <span>Finder</span>
           </NavLink>
           <NavLink
             to="/cofounder/explore"
             className={({ isActive }) =>
               cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1",
-                isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
+                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
               )
             }
           >
-            <Search className="w-4 h-4" /> Explore
+            <Search className="w-4 h-4" />
+            <span>Explore</span>
           </NavLink>
           <NavLink
             to="/cofounder/profile"
             className={({ isActive }) =>
               cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1",
-                isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
+                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
               )
             }
           >
-            <UserPlus className="w-4 h-4" /> Profile
+            <UserPlus className="w-4 h-4" />
+            <span>Profile</span>
           </NavLink>
           <NavLink
             to="/figma"
             className={({ isActive }) =>
               cls(
-                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-1",
-                isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+                "px-3 py-1.5 rounded-md text-sm font-medium flex items-center gap-2 transition-colors",
+                isActive ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"
               )
             }
           >
-            <LayoutGrid className="w-4 h-4" /> Figma
+            <LayoutGrid className="w-4 h-4" />
+            <span>Figma</span>
           </NavLink>
         </nav>
       </div>
