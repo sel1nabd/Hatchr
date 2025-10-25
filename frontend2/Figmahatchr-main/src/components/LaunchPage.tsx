@@ -126,7 +126,8 @@ export function LaunchPage() {
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
   const [matchError, setMatchError] = useState<string | null>(null);
 
-<<<<<<< HEAD
+  const founderProfile = useMemo(() => buildDemoProfile(project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [project, prompt, isVerified, desiredRoles]);
+
   // Fetch real project data from backend
   useEffect(() => {
     const projectId = sessionStorage.getItem("projectId");
@@ -149,11 +150,6 @@ export function LaunchPage() {
 
     fetchProject();
   }, []);
-
-  const founderProfile = useMemo(() => buildDemoProfile(project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [project, prompt, isVerified, desiredRoles]);
-=======
-  const founderProfile = useMemo(() => buildDemoProfile(project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [project, prompt, isVerified, desiredRoles]);
->>>>>>> d2d5a3e (feat(frontend2): integrate full backend functionality (generate→status polling→launch), lovable link, and local cofounder fallback; aligns with Next features)
 
   useEffect(() => {
     // Load project details
@@ -278,7 +274,6 @@ Next Steps:
             <div className="space-y-3">
               <p className="text-slate-700">Tech Stack</p>
               <div className="flex flex-wrap gap-2">
-<<<<<<< HEAD
                 {projectData?.tech_stack ? (
                   projectData.tech_stack.map((tech: string, idx: number) => (
                     <Badge key={idx} variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
@@ -298,13 +293,6 @@ Next Steps:
                     </Badge>
                   </>
                 )}
-=======
-                {(project?.stack || ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"]).map((tech) => (
-                  <Badge key={tech} variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
-                    {tech}
-                  </Badge>
-                ))}
->>>>>>> d2d5a3e (feat(frontend2): integrate full backend functionality (generate→status polling→launch), lovable link, and local cofounder fallback; aligns with Next features)
               </div>
           </div>
         </CardContent>

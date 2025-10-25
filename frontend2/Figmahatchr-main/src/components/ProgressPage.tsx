@@ -67,7 +67,6 @@ export function ProgressPage() {
     // Set a placeholder project name from prompt for the header
     const prompt = sessionStorage.getItem("startupPrompt") || "";
 
-<<<<<<< HEAD
     if (!jobId) {
       setError("No job ID found. Please start generation again.");
       return;
@@ -117,39 +116,6 @@ export function ProgressPage() {
 
     return () => clearInterval(pollInterval);
   }, []);
-=======
-    if (!jobIdFromUrl) return;
-
-    // Poll backend for real status
-    const interval = setInterval(async () => {
-      try {
-        const status = await api.getStatus(jobIdFromUrl);
-        // map backend step statuses
-        setSteps((prev) =>
-          prev.map((s, idx) => {
-            const srv = status.steps[idx];
-            if (!srv) return s;
-            const map: any = { pending: "pending", in_progress: "processing", completed: "complete" };
-            return { ...s, status: map[srv.status] || s.status };
-          })
-        );
-        setProgress(status.progress);
-        if (status.project_name) setProjectName(status.project_name);
-        if (status.status === "completed") {
-          clearInterval(interval);
-          setIsComplete(true);
-          if (status.project_id) {
-            setProjectId(status.project_id);
-            sessionStorage.setItem("currentProjectId", status.project_id);
-          }
-        }
-      } catch (e) {
-        // keep polling; optionally show a soft error message
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [jobIdFromUrl]);
 
   if (!jobIdFromUrl) {
     return (
@@ -165,10 +131,6 @@ export function ProgressPage() {
       </div>
     );
   }
-<<<<<<< HEAD
->>>>>>> d2d5a3e (feat(frontend2): integrate full backend functionality (generate→status polling→launch), lovable link, and local cofounder fallback; aligns with Next features)
-=======
->>>>>>> 806de71 (feat(frontend2): remove Explore and Figma routes; rename Generator to 'Startup Generator'; add gen/launch guards and error UI; keep Profile & Finder; solid header nav)
 
   const generateProjectName = (prompt: string): string => {
     // Simple logic to generate a name from the prompt
