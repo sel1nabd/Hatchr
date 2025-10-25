@@ -51,30 +51,64 @@ export const api = {
       method: "POST",
     });
   },
+  async getLovableUrl(projectId: string): Promise<{ lovable_url: string; project_name?: string }> {
+    return apiFetch(`/api/lovable-url/${projectId}`);
+  },
   async matchCofounders(profile: CofounderRequest): Promise<CofounderMatch[]> {
     const { experienceLevel, ...rest } = profile;
     const payload = {
       ...rest,
       ...(experienceLevel ? { experience_level: experienceLevel } : {}),
     };
-    const result = await apiFetch<{
-      matches: Array<{
-        name: string;
-        compatibility: number;
-        summary: string;
-        shared_skills?: string[];
-        experience_level?: string;
-      }>;
-    }>("/api/cofounders/match", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    return result.matches.map((match) => ({
-      name: match.name,
-      compatibility: match.compatibility,
-      summary: match.summary,
-      sharedSkills: match.shared_skills ?? [],
-      experienceLevel: match.experience_level,
-    }));
+    try {
+      const result = await apiFetch<{
+        matches: Array<{
+          name: string;
+          compatibility: number;
+          summary: string;
+          shared_skills?: string[];
+          experience_level?: string;
+        }>;
+      }>("/api/cofounders/match", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return result.matches.map((match) => ({
+        name: match.name,
+        compatibility: match.compatibility,
+        summary: match.summary,
+        sharedSkills: match.shared_skills ?? [],
+        experienceLevel: match.experience_level,
+      }));
+    } catch (e) {
+      // Fallback: local static matching for demo
+      try {
+        const res = await fetch("/data/mockFounders.json");
+        const founders = (await res.json()) as Array<{
+          name: string;
+          skills: string[];
+          goals?: string;
+          personality?: string;
+          experienceLevel?: string;
+        }>;
+        const userSkills = new Set((rest.skills || []).map((s) => s.toLowerCase()));
+        const scored = founders.map((f) => {
+          const shared = (f.skills || []).filter((s) => userSkills.has(s.toLowerCase()));
+          const compatibility = Math.min(98, 60 + shared.length * 10);
+          return {
+            name: f.name,
+            compatibility,
+            summary: shared.length
+              ? `Shared strengths in ${shared.slice(0, 3).join(", ")}`
+              : `Complementary background for your goals`,
+            sharedSkills: shared,
+            experienceLevel: f.experienceLevel,
+          } as CofounderMatch;
+        });
+        return scored.sort((a, b) => b.compatibility - a.compatibility).slice(0, 3);
+      } catch {
+        return [];
+      }
+    }
   },
 };

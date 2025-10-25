@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
 import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package } from "lucide-react";
+import { api } from "../api";
 
 type Step = {
   id: number;
@@ -16,6 +17,9 @@ type Step = {
 
 export function ProgressPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const jobIdFromUrl = params.get("jobId") || sessionStorage.getItem("currentJobId") || "";
   const [steps, setSteps] = useState<Step[]>([
     { 
       id: 1, 
@@ -42,43 +46,48 @@ export function ProgressPage() {
   const [progress, setProgress] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [projectId, setProjectId] = useState<string | null>(null);
   const isVerified = sessionStorage.getItem("isVerified") === "true";
 
   useEffect(() => {
-    // Get the prompt to generate a project name
+    // Set a placeholder project name from prompt for the header
     const prompt = sessionStorage.getItem("startupPrompt") || "";
     const name = generateProjectName(prompt);
     setProjectName(name);
     sessionStorage.setItem("projectName", name);
 
-    // Simulate the generation process
-    const timings = [2000, 4000, 6000]; // Time for each step
-    let currentProgress = 0;
+    if (!jobIdFromUrl) return;
 
-    timings.forEach((timing, index) => {
-      setTimeout(() => {
+    // Poll backend for real status
+    const interval = setInterval(async () => {
+      try {
+        const status = await api.getStatus(jobIdFromUrl);
+        // map backend step statuses
         setSteps((prev) =>
-          prev.map((step, i) => {
-            if (i === index) return { ...step, status: "processing" };
-            if (i < index) return { ...step, status: "complete" };
-            return step;
+          prev.map((s, idx) => {
+            const srv = status.steps[idx];
+            if (!srv) return s;
+            const map: any = { pending: "pending", in_progress: "processing", completed: "complete" };
+            return { ...s, status: map[srv.status] || s.status };
           })
         );
-        currentProgress = ((index + 1) / 3) * 100;
-        setProgress(currentProgress);
-
-        if (index === timings.length - 1) {
-          setTimeout(() => {
-            setSteps((prev) =>
-              prev.map((step) => ({ ...step, status: "complete" }))
-            );
-            setProgress(100);
-            setIsComplete(true);
-          }, 1500);
+        setProgress(status.progress);
+        if (status.project_name) setProjectName(status.project_name);
+        if (status.status === "completed") {
+          clearInterval(interval);
+          setIsComplete(true);
+          if (status.project_id) {
+            setProjectId(status.project_id);
+            sessionStorage.setItem("currentProjectId", status.project_id);
+          }
         }
-      }, timing);
-    });
-  }, []);
+      } catch (e) {
+        // keep polling; optionally show a soft error message
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [jobIdFromUrl]);
 
   const generateProjectName = (prompt: string): string => {
     // Simple logic to generate a name from the prompt
@@ -92,7 +101,8 @@ export function ProgressPage() {
   };
 
   const handleLaunch = () => {
-    navigate("/launch");
+    const id = projectId || sessionStorage.getItem("currentProjectId");
+    if (id) navigate(`/launch?projectId=${encodeURIComponent(id)}`);
   };
 
   return (

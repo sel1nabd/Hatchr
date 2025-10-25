@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Sparkles, Code, Database, ArrowRight, Users, Megaphone, RefreshCw, Rocket, Copy, CheckCircle2, ExternalLink } from "lucide-react";
 import { api } from "../api";
-import type { CofounderMatch, CofounderRequest } from "../types";
+import type { CofounderMatch, CofounderRequest, ProjectResponse } from "../types";
 
 const PROMOTION_CHANNELS = [
   { name: "Product Hunt", icon: "🚀" },
@@ -107,7 +107,10 @@ function buildDemoProfile(projectName: string, prompt: string, isVerified: boole
 
 export function LaunchPage() {
   const navigate = useNavigate();
-  const projectName = sessionStorage.getItem("projectName") || "Your Startup";
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const projectId = params.get("projectId") || sessionStorage.getItem("currentProjectId") || "";
+  const [project, setProject] = useState<ProjectResponse | null>(null);
   const prompt = sessionStorage.getItem("startupPrompt") || "";
   const isVerified = sessionStorage.getItem("isVerified") === "true";
   const desiredRoles: string[] = (() => {
@@ -123,9 +126,22 @@ export function LaunchPage() {
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
   const [matchError, setMatchError] = useState<string | null>(null);
 
-  const founderProfile = useMemo(() => buildDemoProfile(projectName, prompt, isVerified, desiredRoles), [projectName, prompt, isVerified, desiredRoles]);
+  const founderProfile = useMemo(() => buildDemoProfile(project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [project, prompt, isVerified, desiredRoles]);
 
   useEffect(() => {
+    // Load project details
+    async function loadProject() {
+      if (!projectId) return;
+      try {
+        const data = await api.getProject(projectId);
+        setProject(data);
+        sessionStorage.setItem("projectName", data.project_name);
+      } catch (e) {
+        // ignore, keep basic view
+      }
+    }
+    loadProject();
+
     let cancelled = false;
     setLoadingMatches(true);
     setMatchError(null);
@@ -154,7 +170,7 @@ export function LaunchPage() {
     return () => {
       cancelled = true;
     };
-  }, [founderProfile]);
+  }, [founderProfile, projectId]);
 
   const handleReRun = () => {
     navigate("/");
@@ -214,31 +230,22 @@ Next Steps:
         {/* Overview Card */}
         <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
-            <CardTitle className="text-white mb-2">{projectName}</CardTitle>
-            <CardDescription className="text-indigo-100">{prompt}</CardDescription>
+            <CardTitle className="text-white mb-2">{project?.project_name || sessionStorage.getItem("projectName") || "Your Startup"}</CardTitle>
+            <CardDescription className="text-indigo-100">{prompt || project?.tagline}</CardDescription>
           </div>
           <CardContent className="pt-6 space-y-4">
             <div className="space-y-3">
               <p className="text-slate-700">Tech Stack</p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
-                  <Code className="w-3 h-3" />
-                  Next.js
-                </Badge>
-                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700">
-                  <Database className="w-3 h-3" />
-                  Supabase
-                </Badge>
-                <Badge variant="secondary" className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 text-orange-700">
-                  Tailwind CSS
-                </Badge>
-                <Badge variant="secondary" className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700">
-                  Vercel
-                </Badge>
+                {(project?.stack || ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"]).map((tech) => (
+                  <Badge key={tech} variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
+                    {tech}
+                  </Badge>
+                ))}
               </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
         {/* Cofounder Suggestions */}
         <Card className="bg-white/80 backdrop-blur-xl border-white/20 shadow-xl">
@@ -394,12 +401,19 @@ Next Steps:
               Your startup package is ready. Start building your dream today.
             </p>
             <Button 
+              onClick={async () => {
+                if (!projectId) return;
+                try {
+                  const data = await api.getLovableUrl(projectId);
+                  window.open(data.lovable_url, "_blank");
+                } catch {}
+              }}
               variant="secondary" 
               className="gap-2 bg-white hover:bg-slate-50 text-indigo-600 shadow-lg"
               size="lg"
             >
               <ExternalLink className="w-4 h-4" />
-              View Full Resources
+              Build on Lovable
             </Button>
           </CardContent>
         </Card>
