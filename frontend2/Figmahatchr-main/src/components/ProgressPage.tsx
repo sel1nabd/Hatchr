@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Badge } from "./ui/badge";
-import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package } from "lucide-react";
+import { CheckCircle2, Loader2, Download, ExternalLink, Sparkles, Search, Code2, Package, AlertCircle } from "lucide-react";
 import { api } from "../api";
-import type { StatusResponse } from "../types";
 
 type Step = {
   id: number;
@@ -18,6 +17,9 @@ type Step = {
 
 export function ProgressPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const jobIdFromUrl = params.get("jobId") || sessionStorage.getItem("currentJobId") || "";
   const [steps, setSteps] = useState<Step[]>([
     {
       id: 0,
@@ -59,13 +61,13 @@ export function ProgressPage() {
   const [isComplete, setIsComplete] = useState(false);
   const [projectName, setProjectName] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const isVerified = sessionStorage.getItem("isVerified") === "true";
 
   useEffect(() => {
-    const jobId = sessionStorage.getItem("jobId");
+    // Set a placeholder project name from prompt for the header
     const prompt = sessionStorage.getItem("startupPrompt") || "";
 
+<<<<<<< HEAD
     if (!jobId) {
       setError("No job ID found. Please start generation again.");
       return;
@@ -115,6 +117,55 @@ export function ProgressPage() {
 
     return () => clearInterval(pollInterval);
   }, []);
+=======
+    if (!jobIdFromUrl) return;
+
+    // Poll backend for real status
+    const interval = setInterval(async () => {
+      try {
+        const status = await api.getStatus(jobIdFromUrl);
+        // map backend step statuses
+        setSteps((prev) =>
+          prev.map((s, idx) => {
+            const srv = status.steps[idx];
+            if (!srv) return s;
+            const map: any = { pending: "pending", in_progress: "processing", completed: "complete" };
+            return { ...s, status: map[srv.status] || s.status };
+          })
+        );
+        setProgress(status.progress);
+        if (status.project_name) setProjectName(status.project_name);
+        if (status.status === "completed") {
+          clearInterval(interval);
+          setIsComplete(true);
+          if (status.project_id) {
+            setProjectId(status.project_id);
+            sessionStorage.setItem("currentProjectId", status.project_id);
+          }
+        }
+      } catch (e) {
+        // keep polling; optionally show a soft error message
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [jobIdFromUrl]);
+
+  if (!jobIdFromUrl) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-6">
+        <Card className="max-w-md w-full p-6 text-center">
+          <div className="flex items-center justify-center mb-3">
+            <AlertCircle className="w-6 h-6 text-amber-600" />
+          </div>
+          <h2 className="text-slate-900 font-semibold mb-2">No generation in progress</h2>
+          <p className="text-slate-600 mb-4">Start from the Startup Generator to begin a new build.</p>
+          <Button onClick={() => navigate("/")}>Back to Startup Generator</Button>
+        </Card>
+      </div>
+    );
+  }
+>>>>>>> d2d5a3e (feat(frontend2): integrate full backend functionality (generate→status polling→launch), lovable link, and local cofounder fallback; aligns with Next features)
 
   const generateProjectName = (prompt: string): string => {
     // Simple logic to generate a name from the prompt
@@ -128,7 +179,8 @@ export function ProgressPage() {
   };
 
   const handleLaunch = () => {
-    navigate("/launch");
+    const id = projectId || sessionStorage.getItem("currentProjectId");
+    if (id) navigate(`/launch?projectId=${encodeURIComponent(id)}`);
   };
 
   return (
