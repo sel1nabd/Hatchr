@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Link from "next/link";
+import NavTabs from "@/components/NavTabs";
 
 export const metadata: Metadata = {
   title: "Hatchr - Startup-as-a-Service",
@@ -11,6 +13,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Replace with actual check: you will probably need a global context or persistent check for a real app
+  // For demo, tabs will always show
+
+  const loggedIn = true; // Placeholder for profile-created check (replace with actual condition)
+
   return (
     <html lang="en">
       <body className="antialiased">
@@ -26,6 +33,7 @@ export default function RootLayout({
               <p className="text-sm text-gray-600 mt-1">
                 Build a startup from a single idea
               </p>
+              <NavTabs />
             </div>
           </header>
 

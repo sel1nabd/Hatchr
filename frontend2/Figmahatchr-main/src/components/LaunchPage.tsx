@@ -1,37 +1,11 @@
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Sparkles, Code, Database, ArrowRight, Users, Megaphone, RefreshCw, Rocket, Copy, CheckCircle2, ExternalLink } from "lucide-react";
-import { useState } from "react";
-
-const MOCK_COFOUNDERS = [
-  {
-    id: 1,
-    name: "Alex Chen",
-    role: "Designer with AI UX experience",
-    initials: "AC",
-    color: "from-blue-500 to-cyan-500",
-    skills: ["Figma", "UI/UX", "Design Systems"],
-  },
-  {
-    id: 2,
-    name: "Jordan Martinez",
-    role: "Backend cofounder from LinkedIn",
-    initials: "JM",
-    color: "from-purple-500 to-pink-500",
-    skills: ["Node.js", "Python", "AWS"],
-  },
-  {
-    id: 3,
-    name: "Sam Patel",
-    role: "Full-stack developer with startup experience",
-    initials: "SP",
-    color: "from-orange-500 to-red-500",
-    skills: ["React", "TypeScript", "Product"],
-  },
-];
+import { api } from "../api";
+import type { CofounderMatch, CofounderRequest } from "../types";
 
 const PROMOTION_CHANNELS = [
   { name: "Product Hunt", icon: "🚀" },
@@ -44,18 +18,158 @@ const PROMOTION_CHANNELS = [
   { name: "Beta List", icon: "🎯" },
 ];
 
+const GRADIENTS = [
+  "from-indigo-500 to-purple-500",
+  "from-blue-500 to-cyan-500",
+  "from-teal-500 to-emerald-500",
+  "from-orange-500 to-pink-500",
+];
+
+function getGradient(index: number): string {
+  return GRADIENTS[index % GRADIENTS.length];
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part.trim()[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function buildDemoProfile(projectName: string, prompt: string, isVerified: boolean, desiredRoles: string[]): CofounderRequest {
+  const skills = new Set<string>(["Product Strategy", "Go-To-Market"]);
+  const lowerPrompt = prompt.toLowerCase();
+
+  if (lowerPrompt.includes("ai") || lowerPrompt.includes("machine learning")) {
+    skills.add("AI");
+    skills.add("ML");
+  }
+  if (lowerPrompt.includes("health") || lowerPrompt.includes("med")) {
+    skills.add("Healthcare");
+    skills.add("Compliance");
+  }
+  if (lowerPrompt.includes("fintech") || lowerPrompt.includes("finance") || lowerPrompt.includes("payments")) {
+    skills.add("Fintech");
+    skills.add("Risk");
+  }
+  if (lowerPrompt.includes("web3") || lowerPrompt.includes("blockchain")) {
+    skills.add("Blockchain");
+    skills.add("Smart Contracts");
+  }
+  if (lowerPrompt.includes("education") || lowerPrompt.includes("edtech")) {
+    skills.add("Education");
+    skills.add("Curriculum Design");
+  }
+  if (lowerPrompt.includes("saas") || lowerPrompt.includes("platform")) {
+    skills.add("SaaS");
+    skills.add("Platform Engineering");
+  }
+  if (lowerPrompt.includes("mobile")) {
+    skills.add("Mobile");
+    skills.add("UX");
+  }
+  const ROLE_SKILL_MAP: Record<string, string[]> = {
+    CMO: ["Marketing", "Growth", "SEO", "Brand", "Content"],
+    CTO: ["Full-Stack", "DevOps", "Cloud Architecture", "Node.js"],
+    "Tech Lead": ["Engineering Leadership", "Architecture", "TypeScript"],
+    Designer: ["Design", "Figma", "UX", "UI/UX"],
+    "Sales Lead": ["Sales", "BD", "Partnerships"],
+    COO: ["Operations", "Finance", "Analytics"],
+    "Data Scientist": ["ML", "Data Science", "Python"],
+    "iOS Engineer": ["iOS", "Swift", "Mobile"],
+  };
+  desiredRoles.forEach((role) => {
+    (ROLE_SKILL_MAP[role] || []).forEach((s) => skills.add(s));
+  });
+
+  if (skills.size === 0) {
+    skills.add("Product");
+  }
+
+  const experienceLevel = isVerified ? "Senior" : "Mid-Level";
+  const personality = isVerified
+    ? "Trusted, execution-focused founder looking for complementary skills"
+    : "Curious, collaborative builder seeking a partner to accelerate launch";
+
+  const goals = prompt.trim().length > 0 ? prompt : `Launch ${projectName} to market`;
+
+  return {
+    name: `${projectName} Founder`,
+    skills: Array.from(skills),
+    goals,
+    personality,
+    experienceLevel,
+  };
+}
+
 export function LaunchPage() {
   const navigate = useNavigate();
   const projectName = sessionStorage.getItem("projectName") || "Your Startup";
   const prompt = sessionStorage.getItem("startupPrompt") || "";
+  const isVerified = sessionStorage.getItem("isVerified") === "true";
+  const desiredRoles: string[] = (() => {
+    try {
+      const raw = sessionStorage.getItem("desiredRoles");
+      return raw ? (JSON.parse(raw) as string[]) : [];
+    } catch {
+      return [];
+    }
+  })();
   const [copied, setCopied] = useState(false);
+  const [matches, setMatches] = useState<CofounderMatch[] | null>(null);
+  const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
+  const [matchError, setMatchError] = useState<string | null>(null);
+
+  const founderProfile = useMemo(() => buildDemoProfile(projectName, prompt, isVerified, desiredRoles), [projectName, prompt, isVerified, desiredRoles]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingMatches(true);
+    setMatchError(null);
+
+    const loadMatches = async () => {
+      try {
+        const recommendations = await api.matchCofounders(founderProfile);
+        if (!cancelled) {
+          setMatches(recommendations);
+        }
+      } catch (error) {
+        console.error("Failed to fetch cofounder matches", error);
+        if (!cancelled) {
+          setMatchError("Unable to load matches right now. Try again soon.");
+          setMatches([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingMatches(false);
+        }
+      }
+    };
+
+    loadMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [founderProfile]);
 
   const handleReRun = () => {
     navigate("/");
   };
 
   const handleCopyPlan = () => {
+    const cofounderSection =
+      matches && matches.length > 0
+        ? matches.map((match) => `• ${match.name} (${match.compatibility}%): ${match.summary}`).join("\n")
+        : "• Matches are being prepared — check the dashboard soon.";
+
     const plan = `Launch Plan for ${projectName}
+
+Cofounder Matches:
+${cofounderSection}
 
 Promotion Channels:
 ${PROMOTION_CHANNELS.map((channel) => `• ${channel.name}`).join("\n")}
@@ -136,36 +250,79 @@ Next Steps:
               Cofounder Suggestions
             </CardTitle>
             <CardDescription>
-              Potential cofounders matched through Caffeine.ai
+              Demo recommendations generated by Hatchr AI using your founder profile
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {MOCK_COFOUNDERS.map((cofounder) => (
-              <div
-                key={cofounder.id}
-                className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 group"
-              >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cofounder.color} flex items-center justify-center shadow-lg`}>
-                  <span className="text-white">{cofounder.initials}</span>
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div>
-                    <p className="text-slate-900">{cofounder.name}</p>
-                    <p className="text-slate-600">{cofounder.role}</p>
+            {loadingMatches && (
+              <>
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={`skeleton-${index}`}
+                    className="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-white/60 animate-pulse"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-slate-200" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-32 bg-slate-200 rounded" />
+                      <div className="h-3 w-48 bg-slate-200 rounded" />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {cofounder.skills.map((skill) => (
-                      <Badge key={skill} variant="outline" className="bg-white/50">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
+                ))}
+              </>
+            )}
+
+            {!loadingMatches && matchError && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {matchError}
               </div>
-            ))}
+            )}
+
+            {!loadingMatches && !matchError && matches && matches.length === 0 && (
+              <p className="text-sm text-slate-600">
+                We saved your profile. Check back shortly for curated cofounder suggestions.
+              </p>
+            )}
+
+            {!loadingMatches &&
+              !matchError &&
+              matches &&
+              matches.length > 0 &&
+              matches.map((match, index) => (
+                <div
+                  key={`${match.name}-${index}`}
+                  className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all duration-200 group"
+                >
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getGradient(index)} flex items-center justify-center shadow-lg`}>
+                    <span className="text-white">{getInitials(match.name)}</span>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-slate-900 font-medium">{match.name}</p>
+                        {match.experienceLevel && (
+                          <p className="text-slate-500 text-sm">{match.experienceLevel} • Ideal collaborator</p>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-200 text-indigo-700">
+                        {match.compatibility}% match
+                      </Badge>
+                    </div>
+                    <p className="text-slate-600 text-sm">{match.summary}</p>
+                    {match.sharedSkills.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {match.sharedSkills.map((skill) => (
+                          <Badge key={skill} variant="outline" className="bg-white/50">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
           </CardContent>
         </Card>
 

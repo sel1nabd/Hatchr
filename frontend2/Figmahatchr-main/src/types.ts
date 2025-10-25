@@ -54,3 +54,19 @@ export interface ProjectResponse {
   marketing_assets: MarketingAssets;
   launch_channels: LaunchChannel[];
 }
+
+export interface CofounderRequest {
+  name: string;
+  skills: string[];
+  goals: string;
+  personality: string;
+  experienceLevel?: string;
+}
+
+export interface CofounderMatch {
+  name: string;
+  compatibility: number;
+  sharedSkills: string[];
+  summary: string;
+  experienceLevel?: string;
+}

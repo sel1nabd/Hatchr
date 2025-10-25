@@ -92,6 +92,22 @@ class CofounderMatch(BaseModel):
     summary: str
     experience_level: Optional[str] = None
 
+
+class CofounderRequest(BaseModel):
+    name: str
+    skills: List[str]
+    goals: str
+    personality: str
+    experience_level: Optional[str] = None
+
+
+class CofounderMatch(BaseModel):
+    name: str
+    compatibility: int
+    shared_skills: List[str]
+    summary: str
+    experience_level: Optional[str] = None
+
 # === PLACEHOLDER INTEGRATIONS ===
 
 class ConcordiumService:
@@ -145,6 +161,247 @@ class LivepeerService:
             "status": "generated"
         }
 
+
+
+def _cosine_similarity(vector_a: List[float], vector_b: List[float]) -> float:
+    """Calculate cosine similarity between two embedding vectors."""
+    if not vector_a or not vector_b or len(vector_a) != len(vector_b):
+        return 0.0
+    dot = sum(a * b for a, b in zip(vector_a, vector_b))
+    norm_a = math.sqrt(sum(a * a for a in vector_a))
+    norm_b = math.sqrt(sum(b * b for b in vector_b))
+    if norm_a == 0.0 or norm_b == 0.0:
+        return 0.0
+    return dot / (norm_a * norm_b)
+
+
+def _shared_skills(user_skills: List[str], founder_skills: List[str]) -> List[str]:
+    """Return the shared skills between the user and a founder (case-insensitive)."""
+    user_lookup = {skill.lower() for skill in user_skills}
+    return [skill for skill in founder_skills if skill.lower() in user_lookup]
+
+
+def _default_reason(shared_skills: List[str], founder: Dict[str, Any]) -> str:
+    """Fallback explanation when OpenAI summaries are unavailable."""
+    if shared_skills:
+        return f"Shared strengths in {', '.join(shared_skills)} with matching focus on {founder.get('goals', 'similar goals')}."
+    return f"Aligned ambition around {founder.get('goals', 'high-growth startups')} with a compatible working style."
+
+
+def _load_cofounder_seed() -> List[Dict[str, Any]]:
+    """Load stored founder profiles."""
+    if not os.path.exists(COFOUNDER_DATA_PATH):
+        return []
+    with open(COFOUNDER_DATA_PATH, "r", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+async def _ensure_founder_embeddings(client: OpenAI) -> List[Dict[str, Any]]:
+    """Ensure founder profiles have embeddings cached in memory."""
+    global _cofounder_profiles_cache, _cofounder_embeddings_ready
+    if _cofounder_embeddings_ready and _cofounder_profiles_cache:
+        return _cofounder_profiles_cache
+
+    async with _cofounder_cache_lock:
+        if _cofounder_embeddings_ready and _cofounder_profiles_cache:
+            return _cofounder_profiles_cache
+
+        seed_profiles = _load_cofounder_seed()
+        if not seed_profiles:
+            raise HTTPException(status_code=500, detail="Founder directory is empty")
+
+        embedded_profiles: List[Dict[str, Any]] = []
+        for founder in seed_profiles:
+            profile_text = _profile_to_text(
+                founder.get("skills", []),
+                founder.get("goals", ""),
+                founder.get("personality", ""),
+                founder.get("experienceLevel"),
+            ) or founder.get("name", "")
+
+            try:
+                embedding_response = client.embeddings.create(
+                    model="text-embedding-3-small",
+                    input=profile_text,
+                )
+                founder["embedding"] = embedding_response.data[0].embedding
+            except Exception as exc:
+                raise HTTPException(status_code=500, detail="Failed to prepare founder embeddings") from exc
+
+            embedded_profiles.append(founder)
+
+        _cofounder_profiles_cache = embedded_profiles
+        _cofounder_embeddings_ready = True
+
+    return _cofounder_profiles_cache
+
+
+def _generate_match_summary(
+    client: OpenAI,
+    profile: CofounderRequest,
+    founder: Dict[str, Any],
+    similarity: float,
+) -> str:
+    """Use OpenAI to create a short compatibility summary."""
+    summary_prompt = (
+        "You are an assistant helping founders understand why they are a strong match.\n"
+        "Write one concise sentence (max 25 words) highlighting their alignment, focusing on shared strengths or goals.\n"
+        "Founder: {founder_name}\n"
+        "Founder skills: {founder_skills}\n"
+        "Founder goals: {founder_goals}\n"
+        "Founder personality: {founder_personality}\n"
+        "Founder experience: {founder_experience}\n"
+        "User skills: {user_skills}\n"
+        "User goals: {user_goals}\n"
+        "User personality: {user_personality}\n"
+        "User experience: {user_experience}\n"
+        "Similarity score: {similarity}\n"
+        "Respond with the sentence only."
+    ).format(
+        founder_name=founder.get("name", "Founder"),
+        founder_skills=", ".join(founder.get("skills", [])),
+        founder_goals=founder.get("goals", ""),
+        founder_personality=founder.get("personality", ""),
+        founder_experience=founder.get("experienceLevel", "Unknown"),
+        user_skills=", ".join(profile.skills),
+        user_goals=profile.goals,
+        user_personality=profile.personality,
+        user_experience=profile.experience_level or "Unknown",
+        similarity=round(similarity, 2),
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You provide upbeat, professional co-founder matchmaking insights."},
+                {"role": "user", "content": summary_prompt},
+            ],
+            max_tokens=80,
+            temperature=0.6,
+        )
+        message = completion.choices[0].message.content
+        if message:
+            return message.strip()
+    except Exception:
+        pass
+
+    return _default_reason(_shared_skills(profile.skills, founder.get("skills", [])), founder)
+
+
+def _fallback_matches(profile: CofounderRequest, founders: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Generate deterministic matches when OpenAI is unavailable."""
+    ranked: List[Dict[str, Any]] = []
+    for founder in founders:
+        shared = _shared_skills(profile.skills, founder.get("skills", []))
+        score = len(shared)
+        ranked.append(
+            {
+                "founder": founder,
+                "score": score,
+                "shared": shared,
+            }
+        )
+
+    ranked.sort(key=lambda item: item["score"], reverse=True)
+    response: List[Dict[str, Any]] = []
+    for match in ranked[:3]:
+        founder = match["founder"]
+        shared = match["shared"]
+        compatibility = min(96, 60 + match["score"] * 12)
+        response.append(
+            {
+                "name": founder.get("name", "Founder"),
+                "compatibility": compatibility,
+                "shared_skills": shared,
+                "experience_level": founder.get("experienceLevel"),
+                "summary": _default_reason(shared, founder),
+            }
+        )
+
+    return response
+
+# === BACKGROUND JOB PROCESSOR ===
+
+async def process_generation(job_id: str, prompt: str, verified: bool):
+    """Background task to handle full generation pipeline"""
+
+    try:
+        # Step 0: Sanitize the prompt for security
+        add_log(job_id, "🔒 Checking prompt for security issues...", "info")
+        is_safe, reason = await sanitize_prompt(prompt)
+        
+        if not is_safe:
+            # Prompt failed security check
+            jobs_db[job_id]['status'] = 'failed'
+            error_message = f"Security check failed: {reason}"
+            add_log(job_id, f"❌ {error_message}", "error")
+            raise HTTPException(status_code=400, detail=error_message)
+        
+        add_log(job_id, "✅ Prompt passed security validation", "success")
+        
+        # Step 1: Analyze with GPT-5 and create Lovable URL
+        update_step_status(job_id, 0, "in_progress")
+
+        # Call the generation pipeline
+        result = await generate_full_stack_app(prompt, job_id, add_log)
+
+        update_step_status(job_id, 0, "completed")
+        update_progress(job_id, 50)
+
+        # Extract project data
+        project_id = result['project_id']
+        project_name = result['project_name']
+        lovable_url = result['lovable_url']
+        analysis = result['analysis']
+
+        # Step 2: Generate marketing assets (Livepeer)
+        update_step_status(job_id, 1, "in_progress")
+        add_log(job_id, "Generating marketing materials...", "info")
+
+        video = await LivepeerService.generate_marketing_video(
+            f"{project_name}. {analysis['information'][:200]}",
+            project_name
+        )
+        deck = await LivepeerService.generate_pitch_deck(analysis['information'][:500])
+
+        update_step_status(job_id, 1, "completed")
+        update_progress(job_id, 75)
+
+        # Step 3: Create founder identity (Concordium)
+        update_step_status(job_id, 2, "in_progress")
+        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
+        update_step_status(job_id, 2, "completed")
+        update_progress(job_id, 100)
+
+        # Store project in database
+        projects_db[project_id] = {
+            "project_id": project_id,
+            "project_name": project_name,
+            "tagline": analysis['information'][:200],
+            "stack": ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
+            "verified": concordium_identity['concordium_verified'],
+            "concordium_identity": concordium_identity,
+            "lovable_url": lovable_url,
+            "analysis": analysis,
+            "marketing_assets": {
+                "video": video,
+                "pitch_deck": deck
+            },
+            "launch_channels": generate_launch_channels(),
+            "created_at": datetime.utcnow().isoformat()
+        }
+
+        # Mark job as completed
+        jobs_db[job_id]['status'] = 'completed'
+        jobs_db[job_id]['project_id'] = project_id
+        jobs_db[job_id]['project_name'] = project_name
+
+        add_log(job_id, "🎉 Lovable URL ready! Click to build your app.", "success")
+
+    except Exception as e:
+        jobs_db[job_id]['status'] = 'failed'
+        add_log(job_id, f"Error: {str(e)}", "error")
 
 # === SANITISATION - BURN BABY BURN === #
 
@@ -667,9 +924,6 @@ async def list_projects():
         ]
     }
 
-@app.get("/api/jobs")
-async def list_jobs():
-    """List all jobs"""
 
     return {
         "count": len(jobs_db),
