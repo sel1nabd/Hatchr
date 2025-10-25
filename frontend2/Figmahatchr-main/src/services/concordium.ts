@@ -237,19 +237,19 @@ export function createHatchrIdentityStatement() {
   const eighteenYearsAgo = currentYear - 18;
 
   // Concordium requires a CredentialStatement with idQualifier and statement array
-  return {
+  const statement = {
     idQualifier: {
-      type: 'cred' as const,
+      type: 'cred',
       issuers: [0, 1, 2, 3, 4, 5, 6, 7], // All identity providers
     },
     statement: [
       {
-        type: 'AttributeInRange' as const,
+        type: 'AttributeInRange',
         attributeTag: 'dob', // Date of birth
         upper: `${eighteenYearsAgo}1231`, // Must be born before 18 years ago
       },
       {
-        type: 'AttributeInSet' as const,
+        type: 'AttributeInSet',
         attributeTag: 'countryOfResidence',
         // List of valid countries (example - you can modify this)
         set: [
@@ -261,4 +261,7 @@ export function createHatchrIdentityStatement() {
       },
     ],
   };
+
+  console.log('[Concordium] Generated statement:', JSON.stringify(statement, null, 2));
+  return statement;
 }
