@@ -18,6 +18,10 @@ import math
 import secrets
 import hashlib
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import our services
 from generation_service import generate_startup_backend
@@ -76,6 +80,9 @@ class StatusResponse(BaseModel):
     logs: List[Dict]
     project_id: Optional[str] = None
     project_name: Optional[str] = None
+    logo: Optional[Dict] = None
+    pitch_deck: Optional[Dict] = None
+    live_url: Optional[str] = None
 
 class ProjectResponse(BaseModel):
     project_id: str
@@ -86,6 +93,8 @@ class ProjectResponse(BaseModel):
     download_url: str
     tech_stack: List[str]
     created_at: str
+    marketing_assets: Optional[Dict] = None
+    verified: Optional[bool] = None
 
 class CofounderRequest(BaseModel):
     name: str
@@ -529,95 +538,6 @@ def _fallback_matches(profile: CofounderRequest, founders: List[Dict[str, Any]])
         )
 
     return response
-
-# === BACKGROUND JOB PROCESSOR ===
-
-async def process_generation(job_id: str, prompt: str, verified: bool):
-    """Background task to handle full generation pipeline"""
-
-    try:
-        # Step 0: Sanitize the prompt for security
-        add_log(job_id, "🔒 Checking prompt for security issues...", "info")
-        is_safe, reason = await sanitize_prompt(prompt)
-        
-        if not is_safe:
-            # Prompt failed security check
-            jobs_db[job_id]['status'] = 'failed'
-            error_message = f"Security check failed: {reason}"
-            add_log(job_id, f"❌ {error_message}", "error")
-            raise HTTPException(status_code=400, detail=error_message)
-        
-        add_log(job_id, "✅ Prompt passed security validation", "success")
-        
-        # Step 1: Analyze with GPT-5 and create Lovable URL
-        update_step_status(job_id, 0, "in_progress")
-
-        # Call the generation pipeline
-        result = await generate_full_stack_app(prompt, job_id, add_log)
-
-        update_step_status(job_id, 0, "completed")
-        update_progress(job_id, 50)
-
-        # Extract project data
-        project_id = result['project_id']
-        project_name = result['project_name']
-        lovable_url = result['lovable_url']
-        analysis = result['analysis']
-
-        # Step 2: Generate marketing assets (Livepeer)
-        update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "Generating marketing materials...", "info")
-
-        video = await LivepeerService.generate_marketing_video(
-            f"{project_name}. {analysis['information'][:200]}",
-            project_name
-        )
-        deck = await LivepeerService.generate_pitch_deck(analysis['information'][:500])
-        logo = await LivepeerService.generate_startup_logo(
-            startup_idea=analysis['information'][:300],
-            startup_name=project_name,
-            style="modern"
-        )
-
-        update_step_status(job_id, 1, "completed")
-        update_progress(job_id, 75)
-
-        # Step 3: Create founder identity (Concordium)
-        update_step_status(job_id, 2, "in_progress")
-        concordium_identity = await ConcordiumService.create_founder_identity(job_id, verified)
-        update_step_status(job_id, 2, "completed")
-        update_progress(job_id, 100)
-
-        # Store project in database
-        projects_db[project_id] = {
-            "project_id": project_id,
-            "project_name": project_name,
-            "tagline": analysis['information'][:200],
-            "stack": ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
-            "verified": concordium_identity['concordium_verified'],
-            "concordium_identity": concordium_identity,
-            "lovable_url": lovable_url,
-            "analysis": analysis,
-            "marketing_assets": {
-                "video": video,
-                "pitch_deck": deck,
-                "logo": logo
-            },
-            "launch_channels": generate_launch_channels(),
-            "created_at": datetime.utcnow().isoformat()
-        }
-
-        # Mark job as completed
-        jobs_db[job_id]['status'] = 'completed'
-        jobs_db[job_id]['project_id'] = project_id
-        jobs_db[job_id]['project_name'] = project_name
-
-        add_log(job_id, "🎉 Lovable URL ready! Click to build your app.", "success")
-
-    except Exception as e:
-        jobs_db[job_id]['status'] = 'failed'
-        add_log(job_id, f"Error: {str(e)}", "error")
-
 # === SANITISATION - BURN BABY BURN === #
 
 async def sanitize_prompt(prompt: str) -> tuple[bool, str]:
@@ -932,21 +852,28 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         description = result['description']
         enriched_spec = result.get('spec', {})  # Get the full enriched spec
 
-        # Step 2: Deploy to Render
-        update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "🚀 Deploying to Render.com...", "info")
+        # Step 2: Deploy to Render (TEMPORARILY DISABLED FOR TESTING)
+        # update_step_status(job_id, 1, "in_progress")
+        # add_log(job_id, "🚀 Deploying to Render.com...", "info")
 
-        # Create zip download URL for Render to fetch
-        base_url = "http://localhost:8001"  # TODO: Use actual public URL
+        # # Create zip download URL for Render to fetch
+        # base_url = "http://localhost:8001"  # TODO: Use actual public URL
 
-        deployment = RenderDeployer.deploy_project(
-            project_id=project_id,
-            project_name=project_name,
-            zip_download_url=f"{base_url}/download/{project_id}"
-        )
+        # deployment = RenderDeployer.deploy_project(
+        #     project_id=project_id,
+        #     project_name=project_name,
+        #     zip_download_url=f"{base_url}/download/{project_id}"
+        # )
 
-        live_url = deployment['live_url']
+        # live_url = deployment['live_url']
 
+        # update_step_status(job_id, 1, "completed")
+        # update_progress(job_id, 70)
+        
+        # Temporary: Skip deployment for testing
+        add_log(job_id, "⏭️ Skipping Render deployment (testing mode)...", "info")
+        live_url = f"http://localhost:8001/project/{project_id}"
+        deployment = {"status": "skipped", "message": "Deployment temporarily disabled for testing"}
         update_step_status(job_id, 1, "completed")
         update_progress(job_id, 70)
 
@@ -1003,10 +930,13 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         update_step_status(job_id, 4, "completed")
         update_progress(job_id, 100)
 
-        # Mark job as completed
+        # Mark job as completed and store marketing assets
         jobs_db[job_id]['status'] = 'completed'
         jobs_db[job_id]['project_id'] = project_id
         jobs_db[job_id]['project_name'] = project_name
+        jobs_db[job_id]['logo'] = logo
+        jobs_db[job_id]['pitch_deck'] = deck
+        jobs_db[job_id]['live_url'] = live_url
 
         add_log(job_id, f"🎉 Backend deployed! Live at: {live_url}", "success")
         add_log(job_id, f"📚 API docs available at: {live_url}/docs", "info")
@@ -1263,7 +1193,10 @@ async def get_status(job_id: str):
         steps=job['steps'],
         logs=job['logs'],
         project_id=job.get('project_id'),
-        project_name=job.get('project_name')
+        project_name=job.get('project_name'),
+        logo=job.get('logo'),
+        pitch_deck=job.get('pitch_deck'),
+        live_url=job.get('live_url')
     )
 
 @app.get("/api/project/{project_id}")
@@ -1283,7 +1216,9 @@ async def get_project(project_id: str):
         api_docs_url=project['api_docs_url'],
         download_url=project['download_url'],
         tech_stack=project['tech_stack'],
-        created_at=project['created_at']
+        created_at=project['created_at'],
+        marketing_assets=project.get('marketing_assets'),
+        verified=project.get('verified')
     )
 
 @app.get("/download/{project_id}")

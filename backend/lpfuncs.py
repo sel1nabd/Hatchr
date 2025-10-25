@@ -6,6 +6,7 @@ Handles text-to-image and image-to-video generation using Livepeer AI SDK
 import os
 from typing import Optional, Dict, Any
 from livepeer_ai import Livepeer
+from livepeer_ai.models import components
 import requests
 import tempfile
 import time
@@ -23,7 +24,12 @@ def get_livepeer_client() -> Livepeer:
     if not api_key:
         raise ValueError("LIVEPEER_API_KEY not found in environment variables")
     
-    return Livepeer(http_bearer=api_key)
+    # Use Security object for proper authentication
+    return Livepeer(
+        security=components.Security(
+            http_bearer=api_key
+        )
+    )
 
 
 def generate_image_from_text(

@@ -26,6 +26,20 @@ export interface StatusResponse {
   logs: LogEntry[];
   project_id?: string;
   project_name?: string;
+  logo?: {
+    success: boolean;
+    logo_url?: string;
+    error?: string;
+    status: string;
+  };
+  pitch_deck?: {
+    deck_url?: string;
+    slides?: any[];
+    total_slides?: number;
+    status: string;
+    error?: string;
+  };
+  live_url?: string;
 }
 export interface MarketingAssets {
   video: {
@@ -54,6 +68,22 @@ export interface ProjectResponse {
   download_url: string;
   tech_stack: string[];
   created_at: string;
+  marketing_assets?: {
+    logo?: {
+      success: boolean;
+      logo_url?: string;
+      error?: string;
+      status: string;
+    };
+    pitch_deck?: {
+      deck_url?: string;
+      slides?: any[];
+      total_slides?: number;
+      status: string;
+      error?: string;
+    };
+  };
+  verified?: boolean;
 }
 
 export interface CofounderRequest {

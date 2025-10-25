@@ -109,8 +109,11 @@ export function LaunchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = new URLSearchParams(location.search);
-  const projectId = params.get("projectId") || sessionStorage.getItem("currentProjectId") || "";
+  const projectId = params.get("projectId") || sessionStorage.getItem("currentProjectId") || sessionStorage.getItem("projectId") || "";
   const [project, setProject] = useState<ProjectResponse | null>(null);
+  const [projectData, setProjectData] = useState<ProjectResponse | null>(null);
+  const [loadingProject, setLoadingProject] = useState<boolean>(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const prompt = sessionStorage.getItem("startupPrompt") || "";
   const isVerified = sessionStorage.getItem("isVerified") === "true";
   const desiredRoles: string[] = (() => {
@@ -126,11 +129,10 @@ export function LaunchPage() {
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
   const [matchError, setMatchError] = useState<string | null>(null);
 
-  const founderProfile = useMemo(() => buildDemoProfile(project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [project, prompt, isVerified, desiredRoles]);
+  const founderProfile = useMemo(() => buildDemoProfile(projectData?.project_name || project?.project_name || "Your Startup", prompt, isVerified, desiredRoles), [projectData, project, prompt, isVerified, desiredRoles]);
 
-  // Fetch real project data from backend
+  // Fetch real project data from backend (consolidated single fetch)
   useEffect(() => {
-    const projectId = sessionStorage.getItem("projectId");
     if (!projectId) {
       setLoadingProject(false);
       return;
@@ -140,6 +142,8 @@ export function LaunchPage() {
       try {
         const data = await api.getProject(projectId);
         setProjectData(data);
+        setProject(data); // Keep both for compatibility
+        sessionStorage.setItem("projectName", data.project_name);
       } catch (error) {
         console.error("Failed to fetch project:", error);
         setProjectError("Could not load project data");
@@ -149,22 +153,9 @@ export function LaunchPage() {
     };
 
     fetchProject();
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
-    // Load project details
-    async function loadProject() {
-      if (!projectId) return;
-      try {
-        const data = await api.getProject(projectId);
-        setProject(data);
-        sessionStorage.setItem("projectName", data.project_name);
-      } catch (e) {
-        // ignore, keep basic view
-      }
-    }
-    loadProject();
-
     let cancelled = false;
     setLoadingMatches(true);
     setMatchError(null);

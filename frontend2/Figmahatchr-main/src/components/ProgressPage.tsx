@@ -62,6 +62,9 @@ export function ProgressPage() {
   const [projectName, setProjectName] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
   const [error, setError] = useState(null);
+  const [logo, setLogo] = useState<any>(null);
+  const [pitchDeck, setPitchDeck] = useState<any>(null);
+  const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const isVerified = sessionStorage.getItem("isVerified") === "true";
 
   useEffect(() => {
@@ -80,6 +83,17 @@ export function ProgressPage() {
 
         setProgress(status.progress);
         setProjectName(status.project_name || "Your Startup");
+
+        // Store marketing assets if available
+        if (status.logo) {
+          setLogo(status.logo);
+        }
+        if (status.pitch_deck) {
+          setPitchDeck(status.pitch_deck);
+        }
+        if (status.live_url) {
+          setLiveUrl(status.live_url);
+        }
 
         // Update steps based on backend response
         setSteps(prevSteps =>
@@ -232,6 +246,39 @@ export function ProgressPage() {
                   </Badge>
                 )}
               </div>
+
+              {/* Marketing Assets Preview */}
+              {(logo || pitchDeck) && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 text-center">Marketing Assets Generated</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Logo Preview */}
+                    {logo?.success && logo?.logo_url && (
+                      <div className="border border-slate-200 rounded-lg p-3 bg-white">
+                        <p className="text-xs font-medium text-slate-600 mb-2">Logo</p>
+                        <img 
+                          src={logo.logo_url} 
+                          alt="Startup Logo" 
+                          className="w-full h-32 object-contain bg-slate-50 rounded"
+                        />
+                      </div>
+                    )}
+                    {/* Pitch Deck Preview */}
+                    {pitchDeck?.slides && pitchDeck.slides.length > 0 && (
+                      <div className="border border-slate-200 rounded-lg p-3 bg-white">
+                        <p className="text-xs font-medium text-slate-600 mb-2">
+                          Pitch Deck ({pitchDeck.total_slides || pitchDeck.slides.length} slides)
+                        </p>
+                        <img 
+                          src={pitchDeck.slides[0].image_url} 
+                          alt="Pitch Deck Preview" 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <Button variant="outline" className="gap-2 border-slate-300 hover:bg-slate-50">
