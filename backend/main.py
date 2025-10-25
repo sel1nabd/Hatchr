@@ -900,8 +900,14 @@ async def startup_event():
 active_challenges: Dict[str, str] = {}
 
 def generate_challenge() -> str:
-    """Generate a random challenge for wallet signature"""
-    return secrets.token_urlsafe(32)
+    """
+    Generate a random challenge for wallet signature.
+    Concordium requires a 32-byte hex-encoded string (64 hex characters).
+    """
+    # Generate 32 random bytes and convert to hex string
+    random_bytes = secrets.token_bytes(32)
+    hex_string = random_bytes.hex()
+    return hex_string
 
 def extract_identity_from_presentation(presentation: Dict[str, Any]) -> Dict[str, Optional[Any]]:
     """
