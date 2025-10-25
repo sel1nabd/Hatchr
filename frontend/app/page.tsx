@@ -1,15 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [verified, setVerified] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [rolesOpen, setRolesOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  const ROLES = [
+    "CMO",
+    "CTO",
+    "Tech Lead",
+    "Designer",
+    "Sales Lead",
+    "COO",
+    "Data Scientist",
+    "iOS Engineer",
+  ];
+
+  const rolesRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (rolesRef.current && !rolesRef.current.contains(e.target as Node)) {
+        setRolesOpen(false);
+      }
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -18,6 +42,11 @@ export default function Home() {
     setError(null);
 
     try {
+      // Persist prompt, verification and desired roles for downstream use (generate/launch pages)
+      localStorage.setItem("startupPrompt", prompt);
+      localStorage.setItem("isVerified", String(verified));
+      localStorage.setItem("desiredRoles", JSON.stringify(selectedRoles));
+
       const response = await api.generateStartup({ prompt, verified });
 
       // Store job_id in localStorage and navigate
@@ -86,6 +115,53 @@ export default function Home() {
             Mark as verified founder{" "}
             <span className="text-gray-500">(uses Concordium)</span>
           </label>
+        </div>
+
+        {/* Desired Cofounder Roles */}
+        <div className="mt-4" ref={rolesRef}>
+          <div className="flex items-start justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-pink-100 rounded-lg p-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-gray-900">Looking for cofounders</div>
+              <div className="text-xs text-gray-600">Pick one or more roles you want to find</div>
+              {selectedRoles.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {selectedRoles.map((r) => (
+                    <span key={r} className="px-2 py-0.5 rounded-full border text-xs bg-white">{r}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setRolesOpen((o) => !o)}
+              className="ml-3 px-3 py-1.5 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50"
+            >
+              Select Roles ▾
+            </button>
+          </div>
+          {rolesOpen && (
+            <div className="mt-2 bg-white rounded-lg border border-gray-200 shadow-sm p-3 grid grid-cols-2 gap-2">
+              {ROLES.map((role) => {
+                const checked = selectedRoles.includes(role);
+                return (
+                  <label key={role} className="flex items-center gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={checked}
+                      onChange={(e) => {
+                        setSelectedRoles((prev) => {
+                          if (e.target.checked) return Array.from(new Set([...prev, role]));
+                          return prev.filter((r) => r !== role);
+                        });
+                      }}
+                    />
+                    <span>{role}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Error message */}
