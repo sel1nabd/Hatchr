@@ -69,10 +69,21 @@ def generate_image_from_text(
             if res.image_response is None:
                 raise Exception("No image response received from Livepeer")
             
+            # Extract images from response (Livepeer returns Pydantic objects)
+            images = []
+            if hasattr(res.image_response, 'images') and res.image_response.images:
+                for img in res.image_response.images:
+                    # Access URL attribute directly, not via .get()
+                    images.append({
+                        "url": img.url if hasattr(img, 'url') else None,
+                        "seed": img.seed if hasattr(img, 'seed') else None,
+                        "nsfw": img.nsfw if hasattr(img, 'nsfw') else None
+                    })
+            
             # Convert response to dict for easier handling
             return {
                 "success": True,
-                "images": res.image_response.images if hasattr(res.image_response, 'images') else [],
+                "images": images,
                 "raw_response": res.image_response
             }
             
@@ -96,7 +107,7 @@ def generate_video_from_image(
 ) -> Dict[str, Any]:
     """
     Generate a video from an input image using Livepeer AI.
-    Uses tencent/HunyuanVideo model.
+    Uses stabilityai/stable-video-diffusion-img2vid-xt model.
     
     Args:
         image_path: Path to the input image file
@@ -122,9 +133,9 @@ def generate_video_from_image(
                 res = livepeer.generate.image_to_video(request={
                     "image": {
                         "file_name": os.path.basename(image_path),
-                        "content": image_file.read(),
+                        "content": image_file,
                     },
-                    "model_id": "tencent/HunyuanVideo",
+                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt",
                     "height": height,
                     "width": width,
                     "fps": fps,
@@ -137,10 +148,20 @@ def generate_video_from_image(
                 if res.video_response is None:
                     raise Exception("No video response received from Livepeer")
                 
+                # Extract video from response (Livepeer returns Pydantic objects)
+                video_data = None
+                if hasattr(res.video_response, 'video') and res.video_response.video:
+                    vid = res.video_response.video
+                    video_data = {
+                        "url": vid.url if hasattr(vid, 'url') else None,
+                        "seed": vid.seed if hasattr(vid, 'seed') else None,
+                        "nsfw": vid.nsfw if hasattr(vid, 'nsfw') else None
+                    }
+                
                 # Convert response to dict for easier handling
                 return {
                     "success": True,
-                    "video": res.video_response.video if hasattr(res.video_response, 'video') else None,
+                    "video": video_data,
                     "raw_response": res.video_response
                 }
                 
@@ -170,8 +191,8 @@ def generate_video_from_image_url(
 ) -> Dict[str, Any]:
     """
     Generate a video from an image URL using Livepeer AI.
-    Downloads the image first, then generates the video.
-    Uses tencent/HunyuanVideo model.
+    Downloads the image first, saves it temporarily, then generates the video.
+    Uses stabilityai/stable-video-diffusion-img2vid-xt model.
     
     Args:
         image_url: URL of the input image
@@ -193,45 +214,86 @@ def generate_video_from_image_url(
     import requests
     import tempfile
     
-    try:
-        # Download the image
-        response = requests.get(image_url, timeout=30)
-        response.raise_for_status()
-        
-        # Save to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
-            tmp_file.write(response.content)
-            tmp_path = tmp_file.name
-        
-        # Generate video from the temporary file
-        result = generate_video_from_image(
-            image_path=tmp_path,
-            width=width,
-            height=height,
-            fps=fps,
-            motion_bucket_id=motion_bucket_id,
-            noise_aug_strength=noise_aug_strength,
-            num_inference_steps=num_inference_steps,
-            safety_check=safety_check
-        )
-        
-        # Clean up temporary file
-        os.unlink(tmp_path)
-        
-        return result
-        
-    except requests.RequestException as e:
-        return {
-            "success": False,
-            "error": f"Failed to download image: {str(e)}",
-            "video": None
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e),
-            "video": None
-        }
+    with get_livepeer_client() as livepeer:
+        try:
+            print(f"📥 Downloading image from URL...")
+            # Download the image
+            response = requests.get(image_url, timeout=30)
+            response.raise_for_status()
+            
+            # Save to temporary file with proper extension
+            temp_dir = tempfile.gettempdir()
+            temp_filename = f"livepeer_image_{os.urandom(8).hex()}.png"
+            temp_path = os.path.join(temp_dir, temp_filename)
+            
+            with open(temp_path, 'wb') as f:
+                f.write(response.content)
+            
+            print(f"💾 Image saved temporarily to: {temp_path}")
+            print(f"🎬 Generating video from image...")
+            
+            # Open and send the file as Livepeer expects
+            with open(temp_path, "rb") as image_file:
+                res = livepeer.generate.image_to_video(request={
+                    "image": {
+                        "file_name": temp_filename,
+                        "content": image_file,
+                    },
+                    "model_id": "stabilityai/stable-video-diffusion-img2vid-xt",
+                    "height": height,
+                    "width": width,
+                    "fps": fps,
+                    "motion_bucket_id": motion_bucket_id,
+                    "noise_aug_strength": noise_aug_strength,
+                    "safety_check": safety_check,
+                    "num_inference_steps": num_inference_steps,
+                })
+            
+            # Clean up temporary file
+            try:
+                os.unlink(temp_path)
+                print(f"🧹 Cleaned up temporary file")
+            except:
+                pass
+            
+            if res.video_response is None:
+                raise Exception("No video response received from Livepeer")
+            
+            # Extract video from response (Livepeer returns Pydantic objects)
+            video_data = None
+            if hasattr(res.video_response, 'video') and res.video_response.video:
+                vid = res.video_response.video
+                video_data = {
+                    "url": vid.url if hasattr(vid, 'url') else None,
+                    "seed": vid.seed if hasattr(vid, 'seed') else None,
+                    "nsfw": vid.nsfw if hasattr(vid, 'nsfw') else None
+                }
+            
+            return {
+                "success": True,
+                "video": video_data,
+                "raw_response": res.video_response
+            }
+            
+        except requests.RequestException as e:
+            return {
+                "success": False,
+                "error": f"Failed to download image: {str(e)}",
+                "video": None
+            }
+        except Exception as e:
+            # Clean up temp file if it exists
+            try:
+                if 'temp_path' in locals():
+                    os.unlink(temp_path)
+            except:
+                pass
+            
+            return {
+                "success": False,
+                "error": str(e),
+                "video": None
+            }
 
 
 # Convenience function for the complete workflow
@@ -321,6 +383,210 @@ def generate_marketing_assets(
         "video": video_result,
         "image_url": image_url,
         "video_url": video_result.get("video", {}).get("url") if video_result.get("video") else None
+    }
+
+
+def generate_startup_branding(
+    startup_idea: str,
+    startup_name: str = "",
+    style: str = "modern",
+    color_scheme: str = "",
+    logo_width: int = 1024,
+    logo_height: int = 1024,
+    video_fps: int = 8,
+    motion_intensity: int = 140,
+    include_video: bool = True
+) -> Dict[str, Any]:
+    """
+    Generate complete startup branding: logo image and promotional video from a startup idea.
+    Perfect for frontend integration - user describes their startup, gets back branding assets.
+    
+    Args:
+        startup_idea: Description of the startup (e.g., "AI-powered task management for freelancers")
+        startup_name: Optional name of the startup (included in prompt if provided)
+        style: Visual style - "modern", "minimalist", "playful", "professional", "tech", "elegant"
+        color_scheme: Optional color preferences (e.g., "blue and white", "vibrant neon")
+        logo_width: Logo image width (default: 1024, square for logo)
+        logo_height: Logo image height (default: 1024, square for logo)
+        video_fps: Video frame rate (default: 8 for smoother motion)
+        motion_intensity: How dynamic the video is, 1-255 (default: 140)
+        include_video: Whether to generate video or just logo (default: True)
+        
+    Returns:
+        Dict containing:
+            - success: bool
+            - logo_url: URL to the generated logo image
+            - video_url: URL to the promotional video (if include_video=True)
+            - logo_prompt: The actual prompt used for logo generation
+            - metadata: Additional info about the generation
+            
+    Example:
+        >>> result = generate_startup_branding(
+        ...     startup_idea="AI scheduling assistant for busy professionals",
+        ...     startup_name="TimeAI",
+        ...     style="modern",
+        ...     color_scheme="blue and purple gradient"
+        ... )
+        >>> print(f"Logo: {result['logo_url']}")
+        >>> print(f"Video: {result['video_url']}")
+    """
+    
+    print(f"\n🚀 Generating branding for startup idea: {startup_idea[:60]}...")
+    
+    # Build an optimized prompt for logo generation
+    style_descriptors = {
+        "modern": "clean, modern, minimalist, contemporary, sleek",
+        "minimalist": "ultra minimalist, simple, clean lines, geometric, understated",
+        "playful": "playful, colorful, fun, friendly, approachable, whimsical",
+        "professional": "professional, corporate, refined, sophisticated, polished",
+        "tech": "futuristic, tech-focused, digital, innovative, cutting-edge, high-tech",
+        "elegant": "elegant, luxurious, refined, premium, sophisticated, classy"
+    }
+    
+    style_desc = style_descriptors.get(style.lower(), style_descriptors["modern"])
+    
+    # Construct the logo generation prompt
+    logo_prompt_parts = [
+        f"Professional startup logo design",
+    ]
+    
+    if startup_name:
+        logo_prompt_parts.append(f"for '{startup_name}'")
+    
+    logo_prompt_parts.extend([
+        f"representing: {startup_idea}",
+        f"Style: {style_desc}",
+    ])
+    
+    if color_scheme:
+        logo_prompt_parts.append(f"Color scheme: {color_scheme}")
+    
+    logo_prompt_parts.extend([
+        "High quality, vector-style, iconic, memorable",
+        "Suitable for app icon and website header",
+        "Clean background, centered composition",
+        "4K resolution, professional design"
+    ])
+    
+    logo_prompt = ", ".join(logo_prompt_parts)
+    
+    # Negative prompt for logo generation
+    logo_negative_prompt = (
+        "text, letters, words, watermark, signature, blurry, low quality, "
+        "distorted, noisy, grainy, pixelated, amateur, clipart, low resolution, "
+        "ugly, deformed, messy, cluttered, busy, photo realistic people, "
+        "photographs, 3D renders of objects"
+    )
+    
+    print(f"📝 Logo prompt: {logo_prompt[:100]}...")
+    print(f"🎨 Generating logo image...")
+    
+    # Step 1: Generate logo image
+    logo_result = generate_image_from_text(
+        prompt=logo_prompt,
+        negative_prompt=logo_negative_prompt,
+        width=logo_width,
+        height=logo_height,
+        guidance_scale=8.0,  # Higher guidance for more precise logo
+        num_inference_steps=60,  # More steps for higher quality
+        safety_check=True
+    )
+    
+    if not logo_result["success"]:
+        return {
+            "success": False,
+            "error": f"Logo generation failed: {logo_result['error']}",
+            "logo_url": None,
+            "video_url": None,
+            "logo_prompt": logo_prompt,
+            "metadata": {}
+        }
+    
+    # Extract logo URL
+    logo_url = None
+    if logo_result["images"] and len(logo_result["images"]) > 0:
+        logo_url = logo_result["images"][0]["url"]
+    
+    if not logo_url:
+        return {
+            "success": False,
+            "error": "No logo URL in response",
+            "logo_url": None,
+            "video_url": None,
+            "logo_prompt": logo_prompt,
+            "metadata": {}
+        }
+    
+    print(f"✅ Logo generated: {logo_url}")
+    
+    # If video not requested, return just the logo
+    if not include_video:
+        return {
+            "success": True,
+            "logo_url": logo_url,
+            "video_url": None,
+            "logo_prompt": logo_prompt,
+            "metadata": {
+                "startup_idea": startup_idea,
+                "startup_name": startup_name,
+                "style": style,
+                "logo_dimensions": f"{logo_width}x{logo_height}"
+            }
+        }
+    
+    # Step 2: Generate promotional video from logo
+    print(f"🎬 Generating promotional video from logo...")
+    
+    video_result = generate_video_from_image_url(
+        image_url=logo_url,
+        width=576,  # SVD model works better with 576 width
+        height=1024,  # SVD model works better with 1024 height
+        fps=6,  # Keep FPS low for stability
+        motion_bucket_id=motion_intensity,
+        num_inference_steps=25,  # Reduce steps for faster generation
+        safety_check=True
+    )
+    
+    if not video_result["success"]:
+        # Return logo even if video fails
+        print(f"⚠️  Video generation failed: {video_result['error']}")
+        return {
+            "success": True,  # Still successful since we have logo
+            "logo_url": logo_url,
+            "video_url": None,
+            "logo_prompt": logo_prompt,
+            "metadata": {
+                "startup_idea": startup_idea,
+                "startup_name": startup_name,
+                "style": style,
+                "logo_dimensions": f"{logo_width}x{logo_height}",
+                "video_error": video_result['error']
+            }
+        }
+    
+    video_url = None
+    if video_result.get("video") and isinstance(video_result["video"], dict):
+        video_url = video_result["video"].get("url")
+    
+    if video_url:
+        print(f"✅ Video generated: {video_url}")
+    else:
+        print(f"⚠️  Video URL not found in response")
+    
+    return {
+        "success": True,
+        "logo_url": logo_url,
+        "video_url": video_url,
+        "logo_prompt": logo_prompt,
+        "metadata": {
+            "startup_idea": startup_idea,
+            "startup_name": startup_name,
+            "style": style,
+            "color_scheme": color_scheme,
+            "logo_dimensions": f"{logo_width}x{logo_height}",
+            "video_fps": video_fps,
+            "motion_intensity": motion_intensity
+        }
     }
 
 

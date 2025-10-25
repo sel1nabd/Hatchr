@@ -209,6 +209,8 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
 
 async def sanitize_prompt(prompt: str) -> tuple[bool, str]:
     """
+
+    
     Sanitize user prompt to detect prompt injection and security exploits.
     
     Args:

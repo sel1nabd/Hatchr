@@ -14,7 +14,8 @@ try:
         generate_image_from_text,
         generate_video_from_image,
         generate_video_from_image_url,
-        generate_marketing_assets
+        generate_marketing_assets,
+        generate_startup_branding
     )
     print("✅ All functions imported successfully")
     
@@ -52,6 +53,15 @@ try:
     print("       prompt: str,")
     print("       negative_prompt: str = 'blurry, low quality, distorted',")
     print("       ...)")
+    
+    print("\n5. generate_startup_branding(  ⭐ MAIN FUNCTION FOR FRONTEND")
+    print("       startup_idea: str,")
+    print("       startup_name: str = '',")
+    print("       style: str = 'modern',")
+    print("       color_scheme: str = '',")
+    print("       include_video: bool = True,")
+    print("       ...)")
+    print("   → Returns: logo_url, video_url, metadata")
     
     print("\n" + "="*60)
     print("✅ All tests passed! Functions are ready to use.")

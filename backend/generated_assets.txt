@@ -1,0 +1,11 @@
+GENERATED STARTUP BRANDING ASSETS
+================================================================================
+
+Startup Name: FlowMaster
+Startup Idea: AI-powered task management and scheduling assistant for busy freelancers and remote workers
+
+LOGO:
+https://obj-store.livepeer.cloud/livepeer-cloud-ai-images/ea9dc1ad/b747bab1.png
+
+
+Generated at: {'startup_idea': 'AI-powered task management and scheduling assistant for busy freelancers and remote workers', 'startup_name': 'FlowMaster', 'style': 'modern', 'logo_dimensions': '1024x1024', 'video_error': 'API error occurred: Status 503\n{"error":{"message":"Service Unavailable Error"}}\n'}

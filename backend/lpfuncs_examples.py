@@ -8,7 +8,8 @@ from lpfuncs import (
     generate_image_from_text,
     generate_video_from_image,
     generate_video_from_image_url,
-    generate_marketing_assets
+    generate_marketing_assets,
+    generate_startup_branding
 )
 
 
@@ -118,6 +119,79 @@ def example_4_custom_parameters():
     return result
 
 
+def example_5_startup_branding():
+    """Example 5: Generate complete startup branding (FRONTEND INTEGRATION)"""
+    print("\n" + "="*80)
+    print("EXAMPLE 5: Startup Branding - Logo + Promotional Video")
+    print("="*80 + "\n")
+    print("This is the main function for frontend integration!")
+    print()
+    
+    # Simulate user input from frontend
+    startup_idea = "AI-powered task management and scheduling assistant for busy freelancers and remote workers"
+    startup_name = "FlowAI"
+    
+    result = generate_startup_branding(
+        startup_idea=startup_idea,
+        startup_name=startup_name,
+        style="modern",
+        color_scheme="blue and purple gradient",
+        logo_width=1024,
+        logo_height=1024,
+        video_fps=8,
+        motion_intensity=150,
+        include_video=True
+    )
+    
+    if result["success"]:
+        print("\n✅ Startup branding generated successfully!")
+        print(f"\n📊 Results:")
+        print(f"   Startup: {result['metadata']['startup_name']}")
+        print(f"   Idea: {result['metadata']['startup_idea'][:60]}...")
+        print(f"   Style: {result['metadata']['style']}")
+        print(f"\n🎨 Logo URL: {result['logo_url']}")
+        print(f"🎬 Video URL: {result['video_url']}")
+        print(f"\n💡 Prompt used: {result['logo_prompt'][:100]}...")
+        
+        # This is what you'd return to the frontend
+        frontend_response = {
+            "logo": result['logo_url'],
+            "video": result['video_url'],
+            "metadata": result['metadata']
+        }
+        print(f"\n📤 Frontend response structure:")
+        print(f"   {frontend_response}")
+        
+    else:
+        print(f"\n❌ Branding generation failed: {result['error']}")
+    
+    return result
+
+
+def example_6_logo_only():
+    """Example 6: Generate just a logo (faster, no video)"""
+    print("\n" + "="*80)
+    print("EXAMPLE 6: Logo Only (No Video)")
+    print("="*80 + "\n")
+    
+    result = generate_startup_branding(
+        startup_idea="Sustainable fashion marketplace connecting eco-conscious consumers with ethical brands",
+        startup_name="EcoThreads",
+        style="elegant",
+        color_scheme="earth tones, green and beige",
+        include_video=False  # Skip video generation
+    )
+    
+    if result["success"]:
+        print(f"✅ Logo generated!")
+        print(f"   Logo URL: {result['logo_url']}")
+        print(f"   Video: {'Not requested' if not result['video_url'] else result['video_url']}")
+    else:
+        print(f"❌ Failed: {result['error']}")
+    
+    return result
+
+
 def main():
     """Run all examples"""
     print("\n" + "🚀 " * 20)
@@ -137,6 +211,15 @@ def main():
         
         # Example 4: Custom parameters
         # example_4_custom_parameters()
+        
+        # Example 5: STARTUP BRANDING - Main frontend integration function!
+        print("\n" + "🎯 " * 20)
+        print("FRONTEND INTEGRATION EXAMPLE")
+        print("🎯 " * 20)
+        example_5_startup_branding()
+        
+        # Example 6: Logo only (faster)
+        # example_6_logo_only()
         
     except Exception as e:
         print(f"\n❌ Error running examples: {str(e)}")
