@@ -19,7 +19,7 @@ from datetime import datetime
 
 # Import our services
 from generation_service import generate_startup_backend
-from railway_deploy import DeploymentManager
+from deploy_service import RenderDeployer
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -714,14 +714,17 @@ async def process_generation(job_id: str, prompt: str, verified: bool):
         project_name = result['project_name']
         description = result['description']
 
-        # Step 2: Deploy to Railway
+        # Step 2: Deploy to Render
         update_step_status(job_id, 1, "in_progress")
-        add_log(job_id, "🚀 Deploying to Railway.app...", "info")
+        add_log(job_id, "🚀 Deploying to Render.com...", "info")
 
-        deployment = DeploymentManager.deploy_to_railway(
-            project_path=result['project_path'],
+        # Create zip download URL for Render to fetch
+        base_url = "http://localhost:8001"  # TODO: Use actual public URL
+
+        deployment = RenderDeployer.deploy_project(
+            project_id=project_id,
             project_name=project_name,
-            project_id=project_id
+            zip_download_url=f"{base_url}/download/{project_id}"
         )
 
         live_url = deployment['live_url']
@@ -827,7 +830,7 @@ async def generate_startup(request: GenerateRequest, background_tasks: Backgroun
         "progress": 0,
         "steps": [
             {"id": 0, "title": "Generating backend code", "status": "pending"},
-            {"id": 1, "title": "Deploying to Railway", "status": "pending"},
+            {"id": 1, "title": "Deploying to Render", "status": "pending"},
             {"id": 2, "title": "Generating marketing assets", "status": "pending"},
             {"id": 3, "title": "Creating founder identity", "status": "pending"},
             {"id": 4, "title": "Finalizing startup", "status": "pending"}

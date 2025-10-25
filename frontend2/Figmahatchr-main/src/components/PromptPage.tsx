@@ -19,14 +19,34 @@ export function PromptPage() {
   const [matches, setMatches] = useState<CofounderMatch[] | null>(null);
   const [matchError, setMatchError] = useState<string | null>(null);
   const [desiredRoles, setDesiredRoles] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const handleGenerate = () => {
-    if (prompt.trim()) {
-      // Store the prompt and verified status in sessionStorage
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+
+    setIsGenerating(true);
+    setGenerateError(null);
+
+    try {
+      // Call backend to start generation
+      const response = await api.generateStartup({
+        prompt: prompt.trim(),
+        verified: isVerified,
+      });
+
+      // Store job_id and other data in sessionStorage
+      sessionStorage.setItem("jobId", response.job_id);
       sessionStorage.setItem("startupPrompt", prompt);
       sessionStorage.setItem("isVerified", String(isVerified));
       sessionStorage.setItem("desiredRoles", JSON.stringify(desiredRoles));
+
+      // Navigate to progress page
       navigate("/generate");
+    } catch (error) {
+      console.error("Generation failed:", error);
+      setGenerateError(error instanceof Error ? error.message : "Failed to start generation");
+      setIsGenerating(false);
     }
   };
 

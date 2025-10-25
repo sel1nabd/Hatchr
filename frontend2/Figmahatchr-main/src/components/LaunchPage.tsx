@@ -107,7 +107,11 @@ function buildDemoProfile(projectName: string, prompt: string, isVerified: boole
 
 export function LaunchPage() {
   const navigate = useNavigate();
-  const projectName = sessionStorage.getItem("projectName") || "Your Startup";
+  const [projectData, setProjectData] = useState<any>(null);
+  const [loadingProject, setLoadingProject] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
+
+  const projectName = projectData?.project_name || sessionStorage.getItem("projectName") || "Your Startup";
   const prompt = sessionStorage.getItem("startupPrompt") || "";
   const isVerified = sessionStorage.getItem("isVerified") === "true";
   const desiredRoles: string[] = (() => {
@@ -122,6 +126,29 @@ export function LaunchPage() {
   const [matches, setMatches] = useState<CofounderMatch[] | null>(null);
   const [loadingMatches, setLoadingMatches] = useState<boolean>(true);
   const [matchError, setMatchError] = useState<string | null>(null);
+
+  // Fetch real project data from backend
+  useEffect(() => {
+    const projectId = sessionStorage.getItem("projectId");
+    if (!projectId) {
+      setLoadingProject(false);
+      return;
+    }
+
+    const fetchProject = async () => {
+      try {
+        const data = await api.getProject(projectId);
+        setProjectData(data);
+      } catch (error) {
+        console.error("Failed to fetch project:", error);
+        setProjectError("Could not load project data");
+      } finally {
+        setLoadingProject(false);
+      }
+    };
+
+    fetchProject();
+  }, []);
 
   const founderProfile = useMemo(() => buildDemoProfile(projectName, prompt, isVerified, desiredRoles), [projectName, prompt, isVerified, desiredRoles]);
 
@@ -175,8 +202,7 @@ Promotion Channels:
 ${PROMOTION_CHANNELS.map((channel) => `• ${channel.name}`).join("\n")}
 
 Stack:
-• Frontend: Next.js + React
-• Backend: Supabase
+${projectData?.tech_stack ? projectData.tech_stack.map((tech: string) => `• ${tech}`).join("\n") : "• FastAPI\n• SQLite\n• Python"}
 • Styling: Tailwind CSS
 • Deployment: Vercel
 
@@ -218,23 +244,53 @@ Next Steps:
             <CardDescription className="text-indigo-100">{prompt}</CardDescription>
           </div>
           <CardContent className="pt-6 space-y-4">
+            {projectData && projectData.live_url && (
+              <div className="space-y-3 pb-4 border-b border-slate-200">
+                <p className="text-slate-700 font-medium">Your Backend is Live!</p>
+                <div className="space-y-2">
+                  <a
+                    href={projectData.live_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Live API: {projectData.live_url}
+                  </a>
+                  <a
+                    href={projectData.api_docs_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    API Docs: {projectData.api_docs_url}
+                  </a>
+                </div>
+              </div>
+            )}
             <div className="space-y-3">
               <p className="text-slate-700">Tech Stack</p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
-                  <Code className="w-3 h-3" />
-                  Next.js
-                </Badge>
-                <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700">
-                  <Database className="w-3 h-3" />
-                  Supabase
-                </Badge>
-                <Badge variant="secondary" className="bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 text-orange-700">
-                  Tailwind CSS
-                </Badge>
-                <Badge variant="secondary" className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700">
-                  Vercel
-                </Badge>
+                {projectData?.tech_stack ? (
+                  projectData.tech_stack.map((tech: string, idx: number) => (
+                    <Badge key={idx} variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
+                      <Code className="w-3 h-3" />
+                      {tech}
+                    </Badge>
+                  ))
+                ) : (
+                  <>
+                    <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200 text-blue-700">
+                      <Code className="w-3 h-3" />
+                      FastAPI
+                    </Badge>
+                    <Badge variant="secondary" className="gap-1 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 text-purple-700">
+                      <Database className="w-3 h-3" />
+                      SQLite
+                    </Badge>
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
