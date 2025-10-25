@@ -975,7 +975,8 @@ def extract_identity_from_presentation(presentation: Dict[str, Any]) -> Dict[str
     Extract identity attributes from Concordium verifiable presentation.
 
     The presentation contains zero-knowledge proofs of identity attributes.
-    We extract: name (if disclosed), age (from dob range), country
+    We extract: name (if disclosed), age (from dob range)
+    Country is optional and only extracted if present in the proof.
     """
     try:
         # This is a simplified version - actual implementation would verify ZK proofs
